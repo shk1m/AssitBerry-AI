@@ -1,0 +1,5 @@
+node_modules/
+.env
+chat.db
+fix_db.js
+.DS_Store

@@ -1,0 +1,1732 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>AssistBerry AI</title>
+    <link rel="manifest" href="manifest.json">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+    <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+
+    <script src="https://unpkg.com/docx@7.1.0/build/index.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+    
+
+
+    <style>
+        /* =========================================
+           1. Design Tokens (Luxury Dark Theme)
+           ========================================= */
+        :root {
+            /* Backgrounds */
+            --bg-gradient: linear-gradient(135deg, #0f1014 0%, #181920 100%);
+            --sidebar-glass: rgba(22, 23, 28, 0.75);
+            --header-glass: rgba(22, 23, 28, 0.6);
+            --input-glass: rgba(30, 32, 38, 0.85);
+            
+            /* Text Colors */
+            --text-primary: #f8f9fa;
+            --text-secondary: #aeb5bc;
+            --text-dim: #6c757d;
+
+            /* Accents */
+            --accent-primary: #5c7cfa;
+            --accent-gradient: linear-gradient(135deg, #5c7cfa 0%, #3b5bdb 100%);
+            --accent-glow: 0 0 20px rgba(92, 124, 250, 0.3);
+            
+            /* UI Elements */
+            --border-subtle: rgba(255, 255, 255, 0.08);
+            --border-focus: rgba(92, 124, 250, 0.5);
+            --card-radius: 16px;
+            --sidebar-width: 280px;
+            
+            /* Functional Colors */
+            --error: #ff6b6b;
+            --success: #51cf66;
+        }
+
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        
+        body { 
+            margin: 0; 
+            font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, sans-serif; 
+            background: var(--bg-gradient); 
+            color: var(--text-primary); 
+            height: 100vh; 
+            overflow: hidden; 
+            display: flex;
+        }
+
+        /* Scrollbar Styling */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.15); border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.25); }
+
+        /* =========================================
+           2. Auth Screen (Glass Card)
+           ========================================= */
+        #auth-screen { 
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+            background: var(--bg-gradient); z-index: 2000; 
+            display: flex; justify-content: center; align-items: center; 
+            backdrop-filter: blur(10px);
+        }
+        .auth-card { 
+            background: rgba(30, 32, 40, 0.6); 
+            backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+            padding: 50px 40px; border-radius: 24px; width: 90%; max-width: 420px; 
+            border: 1px solid var(--border-subtle); 
+            text-align: center; 
+            box-shadow: 0 20px 50px rgba(0,0,0,0.5); 
+            animation: fadeInUp 0.6s ease-out;
+        }
+        
+        /* 🔥 로고 스타일 추가 (Auth) */
+        .auth-logo {
+            width: 80px; /* 로고 크기 조절 */
+            height: auto;
+            margin: 0 auto 15px auto;
+            display: block;
+            filter: drop-shadow(0 0 10px rgba(92, 124, 250, 0.3)); /* 로고 발광 효과 */
+        }
+
+        .auth-app-name { font-size: 2rem; font-weight: 800; margin-bottom: 8px; letter-spacing: -0.5px; }
+        .auth-app-name span { background: var(--accent-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .auth-sub-title { font-size: 0.95rem; color: var(--text-secondary); margin-bottom: 30px; font-weight: 500; letter-spacing: 1px; text-transform: uppercase;}
+        
+        .auth-input { 
+            width: 100%; padding: 16px; margin-bottom: 16px; 
+            background: rgba(0, 0, 0, 0.3); border: 1px solid var(--border-subtle); 
+            border-radius: 12px; color: white; outline: none; font-size: 1rem; 
+            transition: all 0.3s ease; 
+        }
+        .auth-input:focus { border-color: var(--accent-primary); box-shadow: 0 0 0 3px rgba(92, 124, 250, 0.15); background: rgba(0, 0, 0, 0.5); }
+        
+        .auth-btn { 
+            width: 100%; padding: 16px; margin-top: 10px;
+            background: var(--accent-gradient); color: white; 
+            border: none; border-radius: 12px; font-weight: 700; font-size: 1rem; 
+            cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; 
+            box-shadow: 0 4px 15px rgba(92, 124, 250, 0.3);
+        }
+        .auth-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(92, 124, 250, 0.4); }
+        .auth-secondary-btn { margin-top: 15px; background: transparent; border: none; color: var(--text-dim); font-size: 0.9rem; cursor: pointer; transition: color 0.2s; }
+        .auth-secondary-btn:hover { color: var(--text-primary); text-decoration: underline; }
+        .auth-error { color: var(--error); font-size: 0.9rem; margin-bottom: 15px; display: none; background: rgba(255, 107, 107, 0.1); padding: 12px; border-radius: 8px; }
+
+        /* =========================================
+           3. Admin Modal (Modern Dashboard)
+           ========================================= */
+        #admin-modal { 
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+            background: rgba(0,0,0,0.7); backdrop-filter: blur(5px);
+            z-index: 3000; display: none; justify-content: center; align-items: center; 
+        }
+        .admin-content { 
+            background: #1e1f24; width: 90%; max-width: 900px; max-height: 85vh; 
+            border-radius: 20px; padding: 30px; overflow-y: auto; 
+            border: 1px solid var(--border-subtle); box-shadow: 0 25px 50px rgba(0,0,0,0.6); 
+        }
+        .admin-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; padding-bottom: 15px; border-bottom: 1px solid var(--border-subtle); }
+        .status-card { background: rgba(255,255,255,0.03); padding: 15px; border-radius: 12px; border: 1px solid var(--border-subtle); text-align: center; }
+        .server-status-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 25px; }
+        .admin-table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 0.9rem; }
+        .admin-table th { text-align: left; padding: 12px; color: var(--text-secondary); font-weight: 600; border-bottom: 1px solid var(--border-subtle); }
+        .admin-table td { padding: 12px; border-bottom: 1px solid rgba(255,255,255,0.05); color: var(--text-primary); }
+        .action-btn { padding: 6px 12px; border-radius: 6px; border: none; cursor: pointer; font-size: 0.8rem; font-weight: 600; transition: 0.2s; }
+        .delete-user-btn { background: rgba(255, 107, 107, 0.15); color: #ff8787; }
+        .delete-user-btn:hover { background: rgba(255, 107, 107, 0.25); }
+
+        /* =========================================
+           4. Layout (Sidebar & Main)
+           ========================================= */
+        #app-container { display: flex; width: 100%; height: 100%; display: none; position: relative; }
+        
+        /* Sidebar: Frosted Glass */
+        #sidebar { 
+            width: var(--sidebar-width); 
+            background: var(--sidebar-glass);
+            backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+            border-right: 1px solid var(--border-subtle); 
+            display: flex; flex-direction: column; 
+            flex-shrink: 0; z-index: 1100;
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); 
+        }
+        #app-container.sidebar-closed #sidebar { margin-left: calc(var(--sidebar-width) * -1); }
+        
+        .sidebar-header { padding: 25px 20px; display: flex; align-items: center; justify-content: space-between; }
+        
+        /* 🔥 로고 스타일 추가 (Sidebar) */
+        .header-brand { 
+            display: flex; 
+            align-items: center; 
+            gap: 10px; /* 로고와 글자 사이 간격 */
+        }
+        .sidebar-logo {
+            width: 36px;
+            height: auto;
+        }
+
+        .brand-text { font-size: 1.2rem; font-weight: 700; color: white; letter-spacing: -0.5px; }
+        .brand-text span { color: var(--accent-primary); }
+        
+        .user-info { padding: 0 20px 15px; color: var(--text-secondary); font-size: 0.85rem; font-weight: 500; border-bottom: 1px solid var(--border-subtle); }
+        
+        #new-chat-btn { 
+            margin: 20px; padding: 12px; 
+            background: rgba(255,255,255,0.05); color: var(--text-primary); 
+            border: 1px solid var(--border-subtle); border-radius: 12px; 
+            font-weight: 600; cursor: pointer; transition: all 0.2s; 
+            display: flex; align-items: center; justify-content: center; gap: 8px;
+        }
+        #new-chat-btn:hover { background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.2); }
+        #new-chat-btn span { font-size: 1.2rem; line-height: 1; color: var(--accent-primary); }
+
+        #session-list { flex: 1; overflow-y: auto; padding: 0 12px; }
+        .session-title {
+            display: block;           /* 블록 요소로 설정 */
+            flex: 1;                  /* 남은 공간을 모두 차지 */
+            min-width: 0;             /* Flexbox 내에서 말줄임표(...) 작동을 위한 필수 설정 */
+            
+            white-space: nowrap;      /* 줄바꿈 금지 (한 줄로 표시) */
+            overflow: hidden;         /* 넘치는 글자 숨김 */
+            text-overflow: ellipsis;  /* ★ 핵심: 넘치는 부분을 ... 으로 표시 */
+            
+            margin-right: 8px;        /* 삭제(x) 버튼과의 간격 */
+            font-size: 0.9rem;        /* 글자 크기 조정 (선택사항) */
+        }
+        .session-item { 
+            padding: 12px 16px; margin-bottom: 4px; border-radius: 10px; 
+            cursor: pointer; color: var(--text-secondary); 
+            display: flex; justify-content: space-between; align-items: center;
+            font-size: 0.9rem; transition: all 0.2s; overflow: hidden;
+        }
+        .session-item:hover { background: rgba(255,255,255,0.05); color: var(--text-primary); }
+        .session-item.active { 
+            background: rgba(92, 124, 250, 0.15); color: var(--accent-primary); 
+            font-weight: 600; 
+        }
+        .delete-btn { opacity: 0; transition: 0.2s; background: none; border: none; color: var(--text-dim); font-size: 1.1rem; padding: 4px; border-radius: 4px; cursor: pointer; }
+        .session-item:hover .delete-btn { opacity: 1; }
+        .delete-btn:hover { background: rgba(255,255,255,0.1); color: var(--error); }
+
+        .sidebar-footer { padding: 20px; border-top: 1px solid var(--border-subtle); background: rgba(0,0,0,0.1); }
+        
+        /* Styled Select */
+        #model-select { 
+            width: 100%; padding: 10px 12px; background: rgba(0,0,0,0.3); 
+            border: 1px solid var(--border-subtle); color: var(--text-secondary); 
+            border-radius: 8px; outline: none; margin-bottom: 10px; cursor: pointer;
+        }
+        #model-select:focus { border-color: var(--accent-primary); }
+
+        .admin-btn { width: 100%; padding: 10px; background: rgba(201, 42, 42, 0.2); color: #ff8787; border: 1px solid rgba(201, 42, 42, 0.3); border-radius: 8px; font-weight: 600; cursor: pointer; margin-bottom: 10px; transition: 0.2s; }
+        .admin-btn:hover { background: rgba(201, 42, 42, 0.3); }
+
+        .logout-btn { font-size: 0.85rem; color: var(--text-dim); background: none; border: none; padding: 0; cursor: pointer; text-decoration: underline; }
+        .copyright { font-size: 0.75rem; color: #5c5f66; margin-top: 15px; text-align: center; opacity: 0.6; }
+
+        /* =========================================
+           5. Main Chat Area
+           ========================================= */
+        #main { flex: 1; display: flex; flex-direction: column; position: relative; min-width: 0; }
+        
+        /* Header */
+        #chat-header { 
+            /* 기존 높이 60px 대신, 모바일 안전 영역(노치)을 더한 높이로 계산 */
+            height: calc(60px + env(safe-area-inset-top)); 
+            
+            padding: 0 24px;
+            
+            /* 상단 패딩에 안전 영역 추가 (이게 핵심) */
+            padding-top: env(safe-area-inset-top); 
+
+            background: var(--header-glass); 
+            backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--border-subtle); 
+            display: flex; gap: 15px; align-items: center; z-index: 10; 
+            position: absolute; top: 0; width: 100%;
+        }
+        #toggle-sidebar-btn { background: transparent; border: none; color: var(--text-secondary); cursor: pointer; padding: 8px; border-radius: 8px; transition: 0.2s; }
+        #toggle-sidebar-btn:hover { background: rgba(255,255,255,0.1); color: white; }
+
+        #chat-container { 
+            flex: 1; overflow-y: auto; 
+            
+            /* 헤더가 커진 만큼 본문 시작 위치도 안전 영역만큼 더 내려줘야 가리지 않음 */
+            padding: calc(80px + env(safe-area-inset-top)) 20px 140px 20px;
+            
+            scroll-behavior: smooth; 
+        }
+
+        /* Message Bubbles */
+        .message { 
+            max-width: 800px; margin: 0 auto 20px; 
+            display: flex; flex-direction: column; position: relative; 
+            opacity: 0; animation: messageSlideIn 0.4s ease-out forwards;
+        }
+        .message.user { align-items: flex-end; }
+        .message.model { align-items: flex-start; }
+
+        .message .content { 
+            padding: 12px 18px; 
+            border-radius: 18px; 
+            font-size: 1rem; 
+            line-height: 1.75; 
+            position: relative; 
+            word-wrap: break-word; 
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+
+        /* User Bubble: Gradient */
+        .message.user .content { 
+            background: var(--accent-gradient); 
+            color: white; 
+            border-bottom-right-radius: 4px; 
+            box-shadow: 0 4px 15px rgba(92, 124, 250, 0.2);
+        }
+
+        /* AI Bubble: Glass Card */
+        .message.model .content { 
+            background: rgba(255, 255, 255, 0.03); 
+            border: 1px solid var(--border-subtle);
+            color: var(--text-primary); 
+            border-bottom-left-radius: 4px;
+            width: 100%; /* Full width for code blocks */
+            padding-right: 40px; 
+        }
+        
+        /* Markdown Styles */
+        .message .content p { margin: 0 !important; }
+        .message .content p + p { margin-top: 10px !important; }
+        .message.model strong { color: #fff; font-weight: 700; }
+        .message.model ul, .message.model ol { padding-left: 20px; margin: 8px 0; }
+        .message.model li { margin-bottom: 4px; }
+        
+        /* Table Styles */
+        .message.model table { width: 100%; border-collapse: separate; border-spacing: 0; margin: 15px 0; border: 1px solid var(--border-subtle); border-radius: 8px; overflow: hidden; }
+        .message.model th { background: rgba(255,255,255,0.05); padding: 10px; font-weight: 600; text-align: left; border-bottom: 1px solid var(--border-subtle); color: var(--text-secondary); }
+        .message.model td { padding: 10px; border-bottom: 1px solid var(--border-subtle); color: var(--text-primary); }
+        .message.model tr:last-child td { border-bottom: none; }
+
+        /* Code Block */
+        pre { 
+            position: relative; /* ★ 핵심: 버튼이 이 상자 안에 갇히도록 기준을 잡음 */
+            
+            background: #15171a !important; 
+            border-radius: 8px; 
+            border: 1px solid var(--border-subtle); 
+            margin: 12px 0; 
+            padding: 12px; /* 코드와 테두리 사이 여백 추가 (가독성 UP) */
+            overflow-x: auto; 
+        }
+        code { font-family: 'JetBrains Mono', monospace; font-size: 0.9rem; }
+
+        /* Copy Buttons */
+        .code-copy-btn, .msg-copy-btn { 
+            position: absolute; top: 8px; right: 8px; 
+            background: rgba(255,255,255,0.1); border: none; 
+            border-radius: 6px; padding: 6px; 
+            color: var(--text-secondary); cursor: pointer; transition: 0.2s;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .code-copy-btn:hover, .msg-copy-btn:hover { background: var(--accent-primary); color: white; }
+        .msg-copy-btn { top: 10px; right: 10px; opacity: 0; }
+        .message:hover .msg-copy-btn { opacity: 1; }
+
+        /* =========================================
+           6. Floating Input Area (Key Change)
+           ========================================= */
+        #input-area { 
+            position: absolute; bottom: 0; left: 0; right: 0; 
+            padding: 20px 0 40px 0; 
+            display: flex; justify-content: center; z-index: 20; 
+            background: linear-gradient(to top, var(--bg-gradient) 20%, transparent 100%);
+            pointer-events: none; /* Let clicks pass through transparent part */
+        }
+        .input-wrapper { 
+            pointer-events: auto;
+            position: relative; width: 800px; max-width: 90%; 
+            background: var(--input-glass); 
+            backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px);
+            border: 1px solid var(--border-subtle); 
+            border-radius: 24px; 
+            display: flex; align-items: center; padding: 6px 6px 6px 16px; 
+            transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+        .input-wrapper:focus-within { 
+            border-color: rgba(92, 124, 250, 0.4); 
+            box-shadow: 0 15px 40px rgba(0,0,0,0.4), var(--accent-primary);
+            transform: translateY(-2px);
+        }
+        
+        #mode-select {
+            background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.05);
+            color: var(--text-secondary); border-radius: 18px; 
+            padding: 0 12px; height: 32px; font-size: 0.8rem; font-weight: 600;
+            outline: none; margin-right: 8px; cursor: pointer; appearance: none;
+            transition: 0.2s; text-align: center;
+        }
+        #mode-select:hover { color: var(--accent-primary); background: rgba(92, 124, 250, 0.1); }
+        #mode-select option { background: #25262b; }
+
+        /* ▼▼▼ [수정 후] 아래 코드로 덮어씌우세요 ▼▼▼ */
+        #input-box { 
+            flex: 1; 
+            background: transparent; 
+            border: none; 
+            
+            /* 핵심 수정: padding을 늘려서 텍스트가 박스 중앙에 위치하도록 조정 */
+            padding: 14px 10px; 
+            
+            color: white; 
+            font-size: 1rem; 
+            resize: none; 
+            overflow-y: hidden; 
+            max-height: 150px; 
+            outline: none; 
+            font-family: 'Pretendard', sans-serif; 
+            line-height: 1.5; 
+            
+            /* 핵심 수정: 초기 높이를 한 줄 높이에 맞게 자동 설정 */
+            height: 52px; 
+        }
+        
+        #send-btn { 
+            background: var(--accent-gradient); border: none; color: white; 
+            cursor: pointer; width: 40px; height: 40px; border-radius: 50%; 
+            display: flex; align-items: center; justify-content: center; 
+            transition: 0.2s; box-shadow: 0 4px 10px rgba(92, 124, 250, 0.3);
+            margin-left: 5px; flex-shrink: 0;
+        }
+        #send-btn:hover { transform: scale(1.05); box-shadow: 0 6px 15px rgba(92, 124, 250, 0.5); }
+        #send-btn:active { transform: scale(0.95); }
+
+        /* =========================================
+           7. Animations & Effects
+           ========================================= */
+        @keyframes messageSlideIn {
+            from { opacity: 0; transform: translateY(15px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes shine {
+            to { background-position: 200% center; }
+        }
+
+        /* Shining Text */
+        .shining-text {
+            font-weight: 800; font-size: 1.1rem;
+            background: linear-gradient(to right, #fff 20%, #a5b4fc 40%, #a5b4fc 60%, #fff 80%);
+            background-size: 200% auto;
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            animation: shine 4s linear infinite;
+        }
+
+        /* Typing Indicator */
+        .typing-indicator { display: flex; gap: 6px; padding: 10px 0; align-items: center; }
+        .typing-dot { width: 6px; height: 6px; background: var(--text-secondary); border-radius: 50%; animation: bounce 1.4s infinite ease-in-out both; }
+        .typing-dot:nth-child(1) { animation-delay: -0.32s; }
+        .typing-dot:nth-child(2) { animation-delay: -0.16s; }
+        @keyframes bounce { 0%, 80%, 100% { transform: scale(0); opacity: 0.5; } 40% { transform: scale(1); opacity: 1; } }
+
+        /* Snow Effect */
+        #snow-header-snow { position: absolute; top:0; left:0; width:100%; height:100%; pointer-events:none; z-index:1; }
+        .snowflake { position: absolute; top: -10px; background: white; border-radius: 50%; filter: blur(1px); animation: snowfall linear infinite; }
+        @keyframes snowfall {
+            0% { transform: translateY(0) translateX(0); opacity: 0.6; }
+            100% { transform: translateY(60px) translateX(20px) rotate(360deg); opacity: 0; }
+        }
+        
+        /* Mobile Adjustments */
+        #mobile-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 1050; display: none; opacity: 0; transition: opacity 0.3s; backdrop-filter: blur(4px); }
+        
+        @media (max-width: 768px) {
+            #sidebar { position: fixed; height: 100%; width: 85%; max-width: 320px; transform: translateX(-100%); box-shadow: 10px 0 30px rgba(0,0,0,0.5); }
+            #app-container.mobile-sidebar-open #sidebar { transform: translateX(0); }
+            #app-container.mobile-sidebar-open #mobile-overlay { display: block; opacity: 1; }
+            #app-container.sidebar-closed #sidebar { margin-left: 0; } /* Reset for mobile logic */
+            
+            .input-wrapper { width: 92%; padding: 4px 4px 4px 12px; border-radius: 20px; }
+            #chat-container { padding: 70px 15px 120px 15px; }
+            .message .content { font-size: 0.95rem; padding: 10px 15px; }
+            #chat-header { padding: 0 15px; }
+        }
+
+        /* 슬래시 커맨드 메뉴 (입력창 위에 둥둥 떠있는 레이어) */
+        #slash-menu {
+            position: absolute; bottom: 80px; left: 16px;
+            background: #25262b; border: 1px solid var(--border-subtle);
+            border-radius: 12px; width: 260px; display: none;
+            flex-direction: column; overflow: hidden; z-index: 100;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.5); padding: 5px;
+        }
+        .slash-item {
+            padding: 10px 12px; cursor: pointer; color: var(--text-secondary);
+            font-size: 0.9rem; border-radius: 8px; display: flex; justify-content: space-between; align-items: center;
+        }
+        .slash-item:hover, .slash-item.selected { background: var(--accent-primary); color: white; }
+        .slash-cmd { font-weight: 700; font-family: 'JetBrains Mono', monospace; }
+        .slash-desc { font-size: 0.75rem; opacity: 0.8; }
+    
+        /* ▼▼▼ [복붙] 바나나 모드 디자인 ▼▼▼ */
+        body.banana-mode {
+            --bg-gradient: linear-gradient(135deg, #181602 0%, #2e2a05 100%);
+            --sidebar-glass: rgba(26, 23, 5, 0.85);
+            --header-glass: rgba(255, 215, 0, 0.05);
+            --accent-primary: #fcc419;
+            --accent-gradient: linear-gradient(135deg, #fcc419 0%, #ffec99 100%);
+            --text-primary: #fff9db;
+        }
+        body.banana-mode .message.user .content { color: #212529; font-weight: bold; }
+        #banana-btn {
+            background: none; border: none; font-size: 1.4rem; cursor: pointer;
+            margin-right: 8px; filter: grayscale(100%); opacity: 0.5; transition: 0.3s;
+        }
+        #banana-btn:hover, #banana-btn.active { filter: grayscale(0%); opacity: 1; transform: scale(1.2); }
+        /* ▲▲▲ [복붙] 여기까지 ▲▲▲ */
+        
+        /* ▼▼▼ [복붙] 커스텀 모달 & 토스트 알림 디자인 (중앙 정렬 & Luxury Dark) ▼▼▼ */
+
+        /* 1. 커스텀 모달 (Confirm 창) */
+        #custom-modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(8px);
+            z-index: 9999; display: none; justify-content: center; align-items: center;
+            animation: fadeIn 0.3s ease-out;
+        }
+        .custom-modal-box {
+            background: rgba(30, 32, 40, 0.95); border: 1px solid var(--border-subtle);
+            border-radius: 20px; padding: 30px; width: 90%; max-width: 400px;
+            text-align: center; box-shadow: 0 20px 50px rgba(0,0,0,0.6);
+            transform: scale(0.9); animation: popIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+        }
+        .modal-icon { font-size: 3.5rem; margin-bottom: 15px; display: block; filter: drop-shadow(0 0 10px rgba(255,255,255,0.2)); }
+        .modal-text { color: var(--text-primary); font-size: 1.1rem; margin-bottom: 25px; line-height: 1.5; word-break: keep-all;}
+        .modal-btns { display: flex; gap: 10px; justify-content: center; }
+        .modal-btn {
+            flex: 1; padding: 12px; border: none; border-radius: 12px;
+            font-weight: 700; cursor: pointer; transition: 0.2s; font-size: 0.95rem;
+        }
+        .btn-cancel { background: rgba(255, 255, 255, 0.1); color: var(--text-secondary); }
+        .btn-cancel:hover { background: rgba(255, 255, 255, 0.15); color: white; }
+        .btn-confirm { background: var(--accent-gradient); color: white; box-shadow: 0 4px 15px rgba(92, 124, 250, 0.3); }
+        .btn-confirm:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(92, 124, 250, 0.4); }
+        .btn-danger { background: linear-gradient(135deg, #ff6b6b 0%, #fa5252 100%); color: white; box-shadow: 0 4px 15px rgba(255, 107, 107, 0.3); }
+        .btn-danger:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(255, 107, 107, 0.4); }
+
+        /* 2. 토스트 알림 (Alert 대체) */
+        #toast-container {
+            position: fixed; bottom: 40px; left: 50%; transform: translateX(-50%);
+            z-index: 10000; pointer-events: none; width: 100%; display: flex; flex-direction: column; align-items: center;
+        }
+        .toast {
+            background: rgba(30, 32, 40, 0.95); border: 1px solid var(--border-subtle);
+            color: white; padding: 12px 24px; border-radius: 50px;
+            margin-top: 10px; box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+            display: flex; align-items: center; gap: 10px; pointer-events: auto;
+            opacity: 0; transform: translateY(20px);
+            animation: toastUp 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+        }
+        @keyframes popIn { to { transform: scale(1); } }
+        @keyframes toastUp { to { opacity: 1; transform: translateY(0); } }
+        /* ▲▲▲ [복붙] 여기까지 ▲▲▲ */
+
+        /* ▼▼▼ [복붙] 채팅창 이미지 예쁘게 만들기 ▼▼▼ */
+
+        /* 1. 이미지 크기 자동 조절 및 디자인 */
+        .message .content img {
+            max-width: 100%;       /* 말풍선 너비를 넘지 않게 */
+            height: auto;          /* 비율 유지 */
+            border-radius: 12px;   /* 모서리 둥글게 */
+            margin-top: 10px;      /* 텍스트와 간격 */
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3); /* 그림자 효과 */
+            display: block;        /* 줄바꿈 */
+            cursor: pointer;       /* 클릭 가능 표시 */
+            transition: transform 0.2s; /* 부드러운 효과 */
+        }
+
+        /* 2. 이미지 마우스 올렸을 때 살짝 커지기 */
+        .message .content img:hover {
+            transform: scale(1.02);
+        }
+
+        /* 3. 모바일에서는 꽉 차게 */
+        @media (max-width: 768px) {
+            .message .content img {
+                width: 100%;       /* 모바일은 가로 꽉 차게 */
+                border-radius: 8px;
+            }
+        }
+        /* ▲▲▲ [복붙] 여기까지 ▲▲▲ */
+    
+        /* ▼▼▼ [복붙] 바나나 모드: 고퀄리티 채팅창 테두리 효과 ▼▼▼ */
+        body.banana-mode .input-wrapper {
+            /* 1. 진한 옐로우 골드 테두리 (2px로 두껍게) */
+            border: 2px solid #fcc419 !important; 
+            
+            /* 2. 고급스러운 발광 효과 (Glow) 
+            - 첫 번째: 외부로 퍼지는 진한 빛
+            - 두 번째: 내부로 스며드는 은은한 빛
+            */
+            box-shadow: 
+                0 0 30px rgba(252, 196, 25, 0.4), 
+                inset 0 0 15px rgba(252, 196, 25, 0.1) !important;
+            
+            /* 3. 활성화 시 살짝 떠오르는 느낌 */
+            transform: translateY(-4px); 
+            
+            /* 4. 배경을 약간 더 어둡게 해서 노란색을 강조 */
+            background: rgba(40, 35, 10, 0.9) !important;
+        }
+
+        /* 바나나 모드일 때 전송 버튼도 깔맞춤 */
+        body.banana-mode #send-btn {
+            background: linear-gradient(135deg, #fcc419 0%, #ff922b 100%) !important;
+            color: #212529 !important; /* 아이콘 검정색 */
+            box-shadow: 0 0 15px rgba(252, 196, 25, 0.6) !important;
+        }
+        /* ▲▲▲ [복붙] 여기까지 ▲▲▲ */
+
+    </style>
+</head>
+<body>
+
+    <div id="auth-screen">
+        <div class="auth-card" id="login-form">
+            <div class="auth-header">
+                <img src="logo.png" class="auth-logo" alt="AssistBerry Logo">
+                <div class="auth-app-name">AssistBerry <span>AI</span></div>
+            </div>
+            <div class="auth-sub-title">System Access</div>
+            <div class="auth-error" id="login-error"></div>
+            <input type="text" id="login-id" class="auth-input" placeholder="Account ID" onkeydown="handleAuthKey(event, 'login')">
+            <input type="password" id="login-pw" class="auth-input" placeholder="Password" onkeydown="handleAuthKey(event, 'login')">
+            <button class="auth-btn" onclick="login()">Sign In</button>
+            <button class="auth-secondary-btn" onclick="toggleAuth('signup')">Create Account</button>
+        </div>
+        <div class="auth-card" id="signup-form" style="display:none;">
+            <div class="auth-header">
+                <img src="logo.png" class="auth-logo" alt="AssistBerry Logo">
+                <div class="auth-app-name">AssistBerry <span>AI</span></div>
+            </div>
+            <div class="auth-sub-title">New Registration</div>
+            <div class="auth-error" id="signup-error"></div>
+            <input type="text" id="signup-id" class="auth-input" placeholder="Desired ID" onkeydown="handleAuthKey(event, 'signup')">
+            <input type="password" id="signup-pw" class="auth-input" placeholder="Desired Password" onkeydown="handleAuthKey(event, 'signup')">
+            <button class="auth-btn" onclick="register()">Submit Request</button>
+            <button class="auth-secondary-btn" onclick="toggleAuth('login')">Return to Login</button>
+        </div>
+    </div>
+
+    <div id="admin-modal">
+        <div class="admin-content">
+            <div class="admin-header">
+                <h2 style="margin:0; color:white;">System Dashboard</h2>
+                <button onclick="document.getElementById('admin-modal').style.display='none'" class="action-btn" style="background:#343a40; color:white; padding:8px 16px;">Close</button>
+            </div>
+            <div class="server-status-grid">
+                <div class="status-card"><div class="status-label" style="color:var(--text-dim); font-size:0.8rem;">MEMORY</div><div class="status-value" id="status-mem" style="font-size:1.5rem; font-weight:700; color:white; margin:5px 0;">-</div><div class="status-sub" id="status-mem-sub" style="color:var(--success); font-size:0.8rem;">-</div></div>
+                <div class="status-card"><div class="status-label" style="color:var(--text-dim); font-size:0.8rem;">CPU LOAD</div><div class="status-value" id="status-load" style="font-size:1.5rem; font-weight:700; color:white; margin:5px 0;">-</div><div class="status-sub" id="status-load-pct" style="color:var(--accent-primary); font-size:0.8rem;">-</div></div>
+                <div class="status-card"><div class="status-label" style="color:var(--text-dim); font-size:0.8rem;">STORAGE</div><div class="status-value" id="status-disk" style="font-size:1.5rem; font-weight:700; color:white; margin:5px 0;">-</div><div class="status-sub" id="status-disk-sub" style="color:var(--text-secondary); font-size:0.8rem;">-</div></div>
+            </div>
+            <div class="uptime-bar" id="status-uptime" style="text-align:center; color:var(--text-dim); font-size:0.9rem; margin-bottom:30px;">Uptime: -</div>
+            
+            <div style="margin-bottom:30px; border-top:1px solid var(--border-subtle); padding-top:20px;">
+                <h4 style="margin:0 0 15px 0; color:var(--text-secondary);">Knowledge Injection</h4>
+                <input type="text" id="ingest-title" class="auth-input" placeholder="Subject Title">
+                <textarea id="ingest-content" class="auth-input" style="height:100px; resize:vertical;" placeholder="Knowledge Content..."></textarea>
+                <button class="auth-btn" onclick="ingestKnowledge()" style="margin-top:0; width:auto; padding:10px 24px;">Inject Data</button>
+            </div>
+
+            <h3 style="margin-top:20px; color:white; font-size:1.1rem;">Stored Knowledge Base</h3>
+            <div style="max-height:300px; overflow-y:auto; border:1px solid var(--border-subtle); border-radius:8px;">
+                <table class="admin-table"><thead><tr><th>ID</th><th>Title</th><th>Date</th><th>Action</th></tr></thead><tbody id="admin-knowledge-list"></tbody></table>
+            </div>
+
+            <h3 style="margin-top:30px; color:white; font-size:1.1rem;">User Management</h3>
+             <div style="max-height:300px; overflow-y:auto; border:1px solid var(--border-subtle); border-radius:8px;">
+                <table class="admin-table"><thead><tr><th>User</th><th>Status</th><th>Pro</th><th>Action</th></tr></thead><tbody id="admin-user-list"></tbody></table>
+            </div>
+            <button class="shutdown-btn" onclick="shutdownServer()" style="width:100%; margin-top:30px; background:rgba(255,107,107,0.1); color:#ff8787; border:1px solid #ff8787; padding:12px; border-radius:8px; font-weight:bold; cursor:pointer;">⏻ Emergency Shutdown</button>
+        </div>
+    </div>
+
+    <div id="mobile-overlay" onclick="toggleSidebar()"></div>
+
+    <div id="app-container">
+        <div id="sidebar">
+            <div class="sidebar-header">
+                <div class="header-brand">
+                    <img src="logo.png" class="sidebar-logo" alt="AssistBerry Logo">
+                    <span class="brand-text">AssistBerry <span>AI</span></span>
+                </div>
+                <button id="mobile-close-btn" onclick="toggleSidebar()" style="background:none; border:none; color:white; font-size:1.2rem; cursor:pointer; display:none;">✕</button>
+            </div>
+            
+            <div class="user-info" id="user-display-name"></div>
+            
+            <button id="new-chat-btn" onclick="handleNewChat()">
+                <span>+</span> New Analysis
+            </button>
+            
+            <div id="session-list"></div>
+            
+            <div class="sidebar-footer">
+                <button class="admin-btn" onclick="clearAllSessions()" style="background:rgba(255, 107, 107, 0.1); color:#ff8787; border-color:rgba(255, 107, 107, 0.2); margin-bottom:10px;">
+                    🗑️ Clear All History
+                </button>
+                <button class="admin-btn" id="admin-panel-btn" onclick="openAdminPanel()" style="display:none;">Admin Dashboard</button>
+                
+                <select id="model-select">
+                    <option value="gemini-2.5-flash" selected>⚡ Gemini 2.5 Flash (Speed)</option>
+                    <option value="gemini-3-pro">🧠 Gemini 3 Pro (Expert)</option>
+                </select>
+
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-top:10px;">
+                    <button class="logout-btn" onclick="logout()">Log Out</button>
+                    <a href="mailto:kimsangho0816@gmail.com" style="color:var(--text-dim); text-decoration:none; font-size:0.75rem;">Contact Dev</a>
+                </div>
+                <div class="copyright">Engineered by sanghokim</div>
+            </div>
+        </div>
+
+        <div id="main">
+            <div id="chat-header">
+                <div class="snow-container" id="snow-header-snow"></div>
+                
+                <button id="toggle-sidebar-btn" onclick="event.stopPropagation(); toggleSidebar()">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+                </button>
+                
+                <span class="shining-text">AI Knowledge Partner</span>
+            </div>
+            
+            <div id="chat-container"></div>
+            
+            <div id="input-area">
+                <div class="input-wrapper">
+                    <select id="mode-select">
+                        <option value="general" selected>General</option>
+                        <option value="tech">Tech</option>
+                        <option value="business">Biz</option>
+                    </select>
+
+                    <div id="slash-menu"></div>
+                    <button id="banana-btn" onclick="toggleBananaMode()" style="display:none;">🍌</button>
+                    <textarea id="input-box" placeholder="Ask anything..."></textarea>
+                    
+                    <button id="send-btn">
+                        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="custom-modal-overlay">
+        <div class="custom-modal-box">
+            <span class="modal-icon" id="modal-icon">⚠️</span>
+            <div class="modal-text" id="modal-msg">Are you sure?</div>
+            <div class="modal-btns">
+                <button class="modal-btn btn-cancel" onclick="closeModal()">Cancel</button>
+                <button class="modal-btn btn-confirm" id="modal-confirm-btn">Confirm</button>
+            </div>
+        </div>
+    </div>
+    <div id="toast-container"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    <script>
+        let currentUser = null;
+        let currentSessionId = null;
+        let isSending = false; 
+        let isComposing = false; 
+        
+        // Mobile Check
+        const isMobile = () => window.innerWidth <= 768;
+
+        marked.setOptions({ breaks: true, gfm: true });
+        
+        if(isMobile()) document.getElementById('mobile-close-btn').style.display = 'block';
+
+        async function safeCopy(text, btn) {
+            try {
+                if (navigator.clipboard && window.isSecureContext) {
+                    await navigator.clipboard.writeText(text);
+                } else {
+                    const textArea = document.createElement("textarea");
+                    textArea.value = text;
+                    textArea.style.position = "fixed"; textArea.style.left = "-9999px";
+                    document.body.appendChild(textArea);
+                    textArea.focus(); textArea.select();
+                    try { document.execCommand('copy'); } catch (err) {}
+                    document.body.removeChild(textArea);
+                }
+                const originalHtml = btn.innerHTML;
+                btn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#51cf66" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
+                setTimeout(() => btn.innerHTML = originalHtml, 1500);
+            } catch (e) { console.error(e); }
+        }
+
+        // ▼▼▼ [복붙] 커스텀 팝업 시스템 & 전체 삭제 로직 ▼▼▼
+
+        // 1. 토스트 알림 (기존 alert 대신 사용)
+        function showToast(msg, icon = '✅') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = 'toast';
+            toast.innerHTML = `<span style="font-size:1.2rem">${icon}</span> <span style="font-weight:500;">${msg}</span>`;
+            container.appendChild(toast);
+            
+            // 3초 뒤 사라짐
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transform = 'translateY(-20px)';
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        // 2. 커스텀 컨펌 창 (기존 confirm 대신 사용)
+        // 사용법: showConfirm("질문내용", () => { 실행할함수() }, "아이콘", "버튼색(옵션)")
+        function showConfirm(msg, onConfirm, icon = '🤔', btnClass = 'btn-confirm') {
+            const overlay = document.getElementById('custom-modal-overlay');
+            document.getElementById('modal-msg').innerHTML = msg.replace(/\n/g, '<br>');
+            document.getElementById('modal-icon').innerText = icon;
+            
+            const confirmBtn = document.getElementById('modal-confirm-btn');
+            confirmBtn.className = `modal-btn ${btnClass}`; // 버튼 색상 변경 (파랑/빨강)
+            
+            // 기존 이벤트 리스너 제거 후 새거 등록 (중복 실행 방지)
+            const newBtn = confirmBtn.cloneNode(true);
+            confirmBtn.parentNode.replaceChild(newBtn, confirmBtn);
+            
+            newBtn.onclick = () => {
+                onConfirm();
+                closeModal();
+            };
+            
+            overlay.style.display = 'flex';
+        }
+
+        function closeModal() {
+            document.getElementById('custom-modal-overlay').style.display = 'none';
+        }
+
+        // 3. [기능] 전체 기록 삭제 함수 (API 호출)
+        // ▼▼▼ [수정] clearAllSessions 함수 내부 (주소 변경) ▼▼▼
+        async function clearAllSessions() {
+            showConfirm(
+                "모든 대화 기록을 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.", 
+                async () => {
+                    try {
+                        // 🔥 여기 주소를 '/api/sessions/clear-all'로 변경! (기존 'all' -> 'clear-all')
+                        const res = await fetch('/api/sessions/clear-all', { method: 'DELETE' });
+                        const data = await res.json();
+                        
+                        if(data.success) {
+                            showToast("모든 대화가 삭제되었습니다.", "🗑️");
+                            currentSessionId = null;
+                            document.getElementById('chat-container').innerHTML = '';
+                            await loadSessions(); // 목록 갱신
+                        } else {
+                            showToast("삭제 실패: " + (data.error || "Unknown Error"), "❌");
+                        }
+                    } catch(e) { console.error(e); }
+                },
+                "🔥", "btn-danger"
+            );
+        }
+        // ▲▲▲ [수정] 여기까지 ▲▲▲
+
+        function toggleAuth(mode) {
+            document.getElementById('login-form').style.display = mode === 'login' ? 'block' : 'none';
+            document.getElementById('signup-form').style.display = mode === 'signup' ? 'block' : 'none';
+        }
+        function handleAuthKey(e, type) { if (e.key === 'Enter') type === 'login' ? login() : register(); }
+
+        async function register() {
+            const res = await fetch('/api/auth/register', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({username:document.getElementById('signup-id').value, password:document.getElementById('signup-pw').value}) });
+            const data = await res.json();
+            if(data.success) { alert(data.message); toggleAuth('login'); } else { alert(data.error); }
+        }
+        async function login() {
+            const res = await fetch('/api/auth/login', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({username:document.getElementById('login-id').value, password:document.getElementById('login-pw').value}) });
+            const data = await res.json();
+            if(data.success) { currentUser = data.user; initApp(); } else { document.getElementById('login-error').innerText = data.error; document.getElementById('login-error').style.display='block'; }
+        }
+        async function logout() { await fetch('/api/auth/logout', {method:'POST'}); location.reload(); }
+
+        // ▼▼▼ [교체] 통합된 initApp 함수 (관리자 강제 표시 기능 포함) ▼▼▼
+        function initApp() {
+            document.getElementById('auth-screen').style.display = 'none';
+            document.getElementById('app-container').style.display = 'flex';
+            
+            // 모바일/PC 사이드바 초기 상태 설정
+            if (isMobile()) document.getElementById('app-container').classList.remove('mobile-sidebar-open');
+            else document.getElementById('app-container').classList.add('sidebar-closed'); 
+            
+            document.getElementById('user-display-name').innerText = `Welcome, ${currentUser.username}`;
+            
+            // 1. Admin 패널 버튼 표시
+            if(currentUser.role === 'admin') {
+                document.getElementById('admin-panel-btn').style.display = 'block';
+            }
+            
+            // 2. 🔥 [핵심 수정] 바나나 버튼 표시 로직
+            // 권한이 있거나(allowImage), 관리자(admin)이거나, 아이디가 'shoo.kim'이면 무조건 보임
+            if (currentUser.allowImage || currentUser.role === 'admin' || currentUser.username === 'shoo.kim') {
+                document.getElementById('banana-btn').style.display = 'block';
+            } else {
+                document.getElementById('banana-btn').style.display = 'none';
+            }
+            
+            // 3. 모델 선택창 잠금 처리
+            const modelSelect = document.getElementById('model-select');
+            const proOpts = [modelSelect.querySelector('option[value="gemini-3-pro"]')];
+            if(!currentUser.allowPro) {
+                proOpts.forEach(opt => { opt.disabled = true; opt.innerText += " (Locked)"; });
+                modelSelect.value = 'gemini-2.5-flash';
+            }
+
+            // 4. 세션 목록 로드
+            loadSessions().then(has => { 
+                if(!has) createNewSession(); 
+                else {
+                    const first = document.querySelector('.session-item');
+                    if(first) loadMessages(first.getAttribute('data-id'));
+                }
+            });
+        }
+        // ▲▲▲ [교체] 여기까지 ▲▲▲
+
+        function toggleSidebar() {
+            const app = document.getElementById('app-container');
+            if (isMobile()) {
+                app.classList.toggle('mobile-sidebar-open');
+            } else {
+                app.classList.toggle('sidebar-closed');
+            }
+        }
+
+        document.getElementById('main').addEventListener('click', () => {
+            if(isMobile() && document.getElementById('app-container').classList.contains('mobile-sidebar-open')) {
+                toggleSidebar();
+            }
+        });
+
+        async function handleNewChat() {
+            await createNewSession();
+            if (isMobile()) {
+                document.getElementById('app-container').classList.remove('mobile-sidebar-open');
+            }
+        }
+
+        const chatContainer = document.getElementById('chat-container');
+        const inputBox = document.getElementById('input-box');
+        
+        async function loadSessions() {
+            const list = document.getElementById('session-list');
+            list.innerHTML = '';
+            
+            try {
+                const res = await fetch('/api/sessions');
+                if(!res.ok) return false;
+                const sessions = await res.json();
+                
+                if(sessions.length === 0) return false;
+
+                // 그룹핑 로직
+                const now = new Date();
+                const groups = { 'Today': [], 'Last 7 Days': [], 'Older': [] };
+                
+                sessions.forEach(s => {
+                    // s.created_at이 DB에 있다고 가정 (없으면 s.id 등으로 추정 필요)
+                    // 여기선 편의상 모두 Today로 들어갈 수 있으니 DB 쿼리에서 created_at 꼭 가져오세요.
+                    const date = new Date(s.created_at || now); 
+                    const diffDays = Math.floor((now - date) / (1000 * 60 * 60 * 24));
+                    
+                    if(diffDays === 0) groups['Today'].push(s);
+                    else if(diffDays <= 7) groups['Last 7 Days'].push(s);
+                    else groups['Older'].push(s);
+                });
+
+                // 렌더링
+                Object.keys(groups).forEach(label => {
+                    if(groups[label].length > 0) {
+                        const header = document.createElement('div');
+                        header.innerText = label;
+                        header.style.cssText = 'padding:15px 12px 5px; font-size:0.75rem; color:var(--text-dim); font-weight:700; text-transform:uppercase; letter-spacing:0.5px;';
+                        list.appendChild(header);
+
+                        groups[label].forEach(s => {
+                            const div = document.createElement('div');
+                            div.className = `session-item ${s.id == currentSessionId ? 'active' : ''}`;
+                            div.setAttribute('data-id', s.id);
+                            div.innerHTML = `<span class="session-title">${s.title}</span><button class="delete-btn">×</button>`;
+                            div.querySelector('.delete-btn').onclick = (e) => { e.stopPropagation(); deleteSession(s.id); };
+                            div.onclick = () => { loadMessages(s.id); if(isMobile()) toggleSidebar(); };
+                            list.appendChild(div);
+                        });
+                    }
+                });
+                return true;
+            } catch(e) { return false; }
+        }
+
+        // ▼▼▼ [교체] 새 세션 생성 함수 (바나나 모드 자동 초기화 추가) ▼▼▼
+        async function createNewSession() {
+            // 🔥 [추가된 부분] 새 채팅 시작 시 바나나 모드라면 끕니다.
+            if (typeof isBananaMode !== 'undefined' && isBananaMode) {
+                toggleBananaMode(); 
+            }
+
+            const res = await fetch('/api/sessions', { method: 'POST' });
+            const data = await res.json();
+            currentSessionId = data.id;
+            chatContainer.innerHTML = '';
+            await loadSessions();
+            inputBox.focus();
+        }
+        // ▲▲▲ [교체] 여기까지 ▲▲▲
+
+        // ▼▼▼ [교체] 개별 삭제 함수 (커스텀 팝업 적용) ▼▼▼
+        async function deleteSession(id) {
+            showConfirm(
+                "이 채팅방을 삭제하시겠습니까?", 
+                async () => {
+                    await fetch(`/api/sessions/${id}`, { method: 'DELETE' });
+                    if(currentSessionId == id) { 
+                        currentSessionId = null; 
+                        document.getElementById('chat-container').innerHTML = ''; 
+                    }
+                    loadSessions();
+                    showToast("삭제되었습니다.");
+                },
+                "🗑️",
+                "btn-danger"
+            );
+        }
+        // ▲▲▲ [교체] 여기까지 ▲▲▲
+
+        async function loadMessages(sid) {
+            currentSessionId = sid;
+            const res = await fetch(`/api/sessions/${sid}/messages`);
+            const msgs = await res.json();
+            chatContainer.innerHTML = '';
+            msgs.forEach(m => appendMessage(m.role, m.content, false));
+            document.querySelectorAll('.session-item').forEach(e => e.classList.remove('active'));
+            const active = document.querySelector(`.session-item[data-id="${sid}"]`);
+            if(active) active.classList.add('active');
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+
+                // =========================================
+        // 📄 Word Report Generator (Samsung Style)
+        // =========================================
+        function exportToWord(contentDiv, title = "Report") {
+            const { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, WidthType, BorderStyle } = docx;
+
+            const children = [];
+            const elements = contentDiv.children;
+
+            // 1. 문서 제목 추가
+            children.push(new Paragraph({
+                children: [new TextRun({ text: title, bold: true, size: 32 })], // 16pt
+                spacing: { after: 400 }
+            }));
+
+            // 2. 본문 파싱 (HTML -> Docx Object 변환)
+            for (let el of elements) {
+                const text = el.innerText.trim();
+                
+                // A. 테이블 처리
+                if (el.tagName === 'TABLE' || el.querySelector('table')) {
+                    const tableEl = el.tagName === 'TABLE' ? el : el.querySelector('table');
+                    const rows = [];
+                    
+                    tableEl.querySelectorAll('tr').forEach((tr, rIndex) => {
+                        const cells = [];
+                        tr.querySelectorAll('td, th').forEach(td => {
+                            const isHeader = (rIndex === 0);
+                            cells.push(new TableCell({
+                                children: [new Paragraph({ 
+                                    children: [new TextRun({ text: td.innerText, bold: isHeader, size: 24 })], // 12pt
+                                    alignment: isHeader ? "center" : "left"
+                                })],
+                                shading: { fill: isHeader ? "E7E6E6" : "FFFFFF" }, // 헤더 회색 배경
+                                verticalAlign: "center",
+                                margins: { top: 100, bottom: 100, left: 100, right: 100 },
+                                width: { size: 100, type: WidthType.PERCENTAGE } // 자동 너비
+                            }));
+                        });
+                        rows.push(new TableRow({ children: cells }));
+                    });
+
+                    children.push(new Table({
+                        rows: rows,
+                        width: { size: 100, type: WidthType.PERCENTAGE },
+                        margins: { top: 200, bottom: 200 }
+                    }));
+                    children.push(new Paragraph({ text: "" })); // 테이블 뒤 공백
+                }
+                
+                // B. 텍스트(문단) 처리 - 개조식 기호 감지
+                else if (['P', 'DIV', 'LI', 'UL', 'OL'].includes(el.tagName)) {
+                    // 삼성 스타일 개조식 로직 적용
+                    let indentLevel = 0; // 기본 (0cm)
+                    let isBold = false;
+                    let contentText = text;
+
+                    if (text.startsWith('□')) {
+                        // 대항목: 굵게, 들여쓰기 없음
+                        isBold = true;
+                        indentLevel = 0;
+                    } else if (text.startsWith('-')) {
+                        // 중항목: 들여쓰기 0.5cm (약 280 twips)
+                        indentLevel = 280; 
+                    } else if (text.startsWith('·')) {
+                        // 소항목: 들여쓰기 1.0cm (약 560 twips)
+                        indentLevel = 560;
+                    } else if (el.tagName === 'LI') {
+                        indentLevel = 280; // 리스트는 기본적으로 들여쓰기
+                    }
+
+                    children.push(new Paragraph({
+                        children: [new TextRun({ 
+                            text: contentText, 
+                            bold: isBold, 
+                            size: 28, // 14pt (본문 표준)
+                            font: "Malgun Gothic" // 맑은 고딕
+                        })],
+                        indent: { left: indentLevel },
+                        spacing: { before: 100, after: 100, line: 360 } // 줄간격 1.5배
+                    }));
+                }
+                
+                // C. 코드 블록 처리
+                else if (el.tagName === 'PRE') {
+                    const codeText = el.innerText;
+                    children.push(new Paragraph({
+                        children: [new TextRun({ 
+                            text: codeText, 
+                            font: "Consolas", 
+                            size: 20, // 10pt
+                            color: "444444" 
+                        })],
+                        shading: { fill: "F0F0F0" }, // 회색 박스
+                        border: {
+                            top: { style: BorderStyle.SINGLE, size: 1, color: "CCCCCC" },
+                            bottom: { style: BorderStyle.SINGLE, size: 1, color: "CCCCCC" },
+                            left: { style: BorderStyle.SINGLE, size: 1, color: "CCCCCC" },
+                            right: { style: BorderStyle.SINGLE, size: 1, color: "CCCCCC" },
+                        },
+                        spacing: { before: 200, after: 200 }
+                    }));
+                }
+            }
+
+            // 3. 문서 생성 및 다운로드
+            const doc = new Document({
+                sections: [{
+                    properties: {},
+                    children: children,
+                }],
+            });
+
+            Packer.toBlob(doc).then((blob) => {
+                const fileName = `Report_${new Date().toISOString().slice(0,10)}.docx`;
+                saveAs(blob, fileName);
+            });
+        }
+
+        async function sendMessage() {
+                    if (isSending) return; 
+                    const msg = inputBox.value.trim();
+                    if(!msg) return;
+                    
+                    isSending = true; 
+                    if(!currentSessionId) await createNewSession();
+
+                    // UI 초기화
+                    inputBox.value = ''; 
+                    inputBox.style.height = '48px'; 
+                    setTimeout(() => { inputBox.value = ''; }, 0); 
+                    
+                    appendMessage('user', msg, false);
+                    chatContainer.scrollTop = chatContainer.scrollHeight;
+
+                    // 로딩 말풍선 생성
+                    const loading = document.createElement('div');
+                    loading.className = 'message model';
+                    // 초기 로딩 상태 (점 3개 애니메이션)
+                    loading.innerHTML = `
+                        <div class="content" style="background:transparent; border:none; padding-left:0; display:flex; align-items:center;">
+                            <div class="typing-indicator">
+                                <div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div>
+                            </div>
+                        </div>`;
+                    chatContainer.appendChild(loading);
+                    chatContainer.scrollTop = chatContainer.scrollHeight;
+
+                    // ▼▼▼ [재시도 로직 시작] ▼▼▼
+                    const maxRetries = 3;
+                    let attempt = 0;
+                    let success = false;
+
+                    while (attempt < maxRetries && !success) {
+                        attempt++;
+                        try {
+                            const res = await fetch('/api/chat', {
+                                method: 'POST', headers: {'Content-Type':'application/json'},
+                                body: JSON.stringify({ 
+                                    sessionId: currentSessionId, 
+                                    message: msg, 
+                                    modelName: document.getElementById('model-select').value,
+                                    modeName: document.getElementById('mode-select').value 
+                                })
+                            });
+                            
+                            const data = await res.json();
+                            
+                            if (!res.ok) {
+                                // 서버가 400~500 에러를 주면 예외를 발생시켜 catch로 보냄
+                                throw new Error(data.error || `HTTP Error ${res.status}`);
+                            }
+
+                            // 성공 시
+                            if(loading.parentNode) chatContainer.removeChild(loading);
+                            appendMessage('model', data.response, true); 
+                            loadSessions(); 
+                            success = true;
+
+                        } catch(e) {
+                            console.warn(`Attempt ${attempt} failed:`, e);
+
+                            if (attempt < maxRetries) {
+                                // 재시도 중일 때: 로딩 말풍선 텍스트 변경
+                                const contentDiv = loading.querySelector('.content');
+                                if (contentDiv) {
+                                    contentDiv.innerHTML = `
+                                        <div class="typing-indicator">
+                                            <div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div>
+                                        </div>
+                                        <span style="font-size:0.8rem; color:#ff6b6b; margin-left:10px; font-weight:600;">
+                                            ⚠️ 연결 실패. 재시도 중 (${attempt}/${maxRetries})...
+                                        </span>`;
+                                }
+                                // 1.5초 대기 후 재시도 (너무 빨리 재시도하면 서버에 부하가 가므로)
+                                await new Promise(r => setTimeout(r, 1500));
+                            } else {
+                                // 최종 실패 (3회 모두 실패)
+                                if(loading.parentNode) chatContainer.removeChild(loading);
+                                appendMessage('model', `**Network Error**: 서버 응답이 없습니다. (3회 재시도 실패)\n- 원인: ${e.message}`, false);
+                            }
+                        }
+                    }
+                    // ▲▲▲ [재시도 로직 끝] ▲▲▲
+                    
+                    isSending = false; 
+                }
+
+        function appendMessage(role, content, animate) {
+            const div = document.createElement('div');
+            div.className = `message ${role}`;
+            const contentDiv = document.createElement('div');
+            contentDiv.className = 'content';
+            
+            div.appendChild(contentDiv);
+            chatContainer.appendChild(div);
+            
+            const renderMarkdown = () => {
+                contentDiv.innerHTML = marked.parse(content);
+                contentDiv.querySelectorAll('pre code').forEach(el => hljs.highlightElement(el));
+                
+                const copyIcon = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>`;
+
+                // appendMessage 함수 내부 (renderMarkdown 안쪽, role === 'model' 체크하는 부분)
+
+                if (role === 'model') {
+                    // 1. 기존 Copy 버튼 (유지)
+                    const msgCopyBtn = document.createElement('button');
+                    msgCopyBtn.className = 'msg-copy-btn';
+                    msgCopyBtn.title = 'Copy Message';
+                    msgCopyBtn.innerHTML = copyIcon; // 기존 아이콘
+                    msgCopyBtn.onclick = () => safeCopy(content, msgCopyBtn);
+                    contentDiv.appendChild(msgCopyBtn);
+
+                    // 2. [추가] Word 다운로드 버튼
+                    const wordBtn = document.createElement('button');
+                    wordBtn.className = 'msg-copy-btn'; // 스타일 공유 (위치만 조정 필요)
+                    wordBtn.style.right = '40px'; // Copy 버튼 왼쪽으로 배치
+                    wordBtn.title = 'Export to Word';
+                    // Word 아이콘 (W)
+                    wordBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"></path><polyline points="14 2 14 8 20 8"></polyline><text x="8" y="18" font-size="8" font-weight="bold" fill="currentColor">W</text></svg>`;
+                    
+                    wordBtn.onclick = () => {
+                        // 버튼 로딩 효과
+                        const originalHtml = wordBtn.innerHTML;
+                        wordBtn.innerHTML = `<span style="font-size:10px">...</span>`;
+                        
+                        // 워드 변환 실행 (contentDiv 전체를 넘김)
+                        exportToWord(contentDiv, "Project Report");
+                        
+                        setTimeout(() => wordBtn.innerHTML = originalHtml, 1000);
+                    };
+                    contentDiv.appendChild(wordBtn);
+                }
+
+                contentDiv.querySelectorAll('pre').forEach(pre => {
+                    const btn = document.createElement('button');
+                    btn.className = 'code-copy-btn';
+                    btn.title = 'Copy Code';
+                    btn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>`;
+                    const code = pre.querySelector('code');
+                    if(code) {
+                        btn.onclick = () => safeCopy(code.innerText, btn);
+                        pre.appendChild(btn);
+                    }
+                });
+            };
+            renderMarkdown();
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+
+        inputBox.addEventListener('compositionstart', () => { isComposing = true; });
+        inputBox.addEventListener('compositionend', () => { isComposing = false; });
+        inputBox.addEventListener('keydown', (e) => { 
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                if (isComposing) return; 
+                sendMessage();
+            } 
+        });
+        
+        document.getElementById('send-btn').addEventListener('click', sendMessage);
+        document.getElementById('new-chat-btn').onclick = handleNewChat;
+        document.getElementById('input-box').addEventListener('input', function() {
+            // 1. 높이 계산을 위해 잠시 auto로 초기화
+            this.style.height = 'auto';
+            
+            // 2. 최대 높이 설정 (150px)
+            const maxHeight = 150;
+            
+            // 3. 내용이 150px을 넘으면 높이를 고정하고 스크롤을 켬 (auto)
+            if (this.scrollHeight > maxHeight) {
+                this.style.height = maxHeight + 'px';
+                this.style.overflowY = 'auto';
+            } else {
+                // 내용이 150px 이하라면 높이를 늘리고 스크롤을 숨김 (hidden)
+                this.style.height = this.scrollHeight + 'px';
+                this.style.overflowY = 'hidden';
+            }
+            
+            if(this.value === '') {
+                this.style.height = 'auto';
+                this.style.overflowY = 'hidden';
+            }
+        });
+
+        // ▼▼▼ [교체] 어드민 패널 (관리자 권한 고정 로직 추가) ▼▼▼
+        async function openAdminPanel() {
+            const modal = document.getElementById('admin-modal');
+            modal.style.display = 'flex'; 
+            loadKnowledgeList();
+
+            // 1. 서버 상태 (기존 코드 유지)
+            // ▼▼▼ [수정] openAdminPanel 함수 내부의 '서버 상태 표시' 부분 ▼▼▼
+            try {
+                const s = await fetch('/api/admin/status').then(r => r.json());
+                
+                // 1. Memory (기존 유지)
+                const memPct = Math.round((s.memory.used / s.memory.total) * 100);
+                document.getElementById('status-mem').innerText = `${(s.memory.used/1024/1024/1024).toFixed(1)}GB`;
+                document.getElementById('status-mem-sub').innerText = `${memPct}% Used`;
+
+                // 2. CPU (Load -> % 로 변경) 🔥
+                // 큰 글씨: 42%
+                // 작은 글씨: 0.42 (4 Cores)
+                document.getElementById('status-load').innerText = `${s.cpuPct}%`;
+                document.getElementById('status-load-pct').innerText = `${s.load.toFixed(2)} (${s.cpuCount}C)`;
+
+                // 3. Storage (%와 DB용량 함께 표시) 🔥
+                // 큰 글씨: 24% (디스크 전체 사용률)
+                // 작은 글씨: DB: 0.77 MB
+                document.getElementById('status-disk').innerText = s.disk.pct; 
+                document.getElementById('status-disk-sub').innerText = `DB: ${s.dbSize} (${s.disk.used} / ${s.disk.total})`;
+                
+                // 4. Uptime
+                const upH = Math.floor(s.uptime / 3600);
+                document.getElementById('status-uptime').innerText = `System Uptime: ${upH}h`;
+            } catch(e) { console.error(e); }
+        // ▲▲▲ [수정] 여기까지 ▲▲▲
+
+            // 2. 유저 리스트 (관리자 권한 고정 로직 적용)
+            const res = await fetch('/api/admin/users');
+            const users = await res.json();
+            const tbody = document.getElementById('admin-user-list');
+            tbody.innerHTML = '';
+            
+            users.forEach(u => {
+                const tr = document.createElement('tr');
+                const isAdmin = (u.username === 'shoo.kim' || u.role === 'admin');
+
+                // (1) Pro 배지
+                const proBadge = (u.allow_pro || isAdmin)
+                    ? `<span style="color:#339af0; font-weight:800;">PRO</span>` 
+                    : `<span style="color:#868e96; font-size:0.9rem;">LITE</span>`;
+                    
+                // (2) 바나나 배지 (관리자는 무조건 ON 표시)
+                const bananaBadge = (u.allow_image || isAdmin)
+                    ? `<span style="font-size:1.2rem; margin-left:8px;" title="Image Gen ON">🍌</span>`
+                    : `<span style="font-size:1.2rem; margin-left:8px; opacity:0.1; filter:grayscale(100%);" title="Image Gen OFF">🍌</span>`;
+
+                // (3) 바나나 버튼 로직 (관리자는 버튼 비활성화)
+                let bananaBtn;
+                if (isAdmin) {
+                    // 관리자용 버튼 (클릭 불가, 항상 노란색)
+                    bananaBtn = `<button class="action-btn" style="background:#fab005; color:#000; font-weight:bold; cursor:default; opacity:0.7;" title="Admin Always ON">🔒</button>`;
+                } else {
+                    // 일반 유저용 버튼 (토글 가능)
+                    // 여기서 allow_image가 undefined일 경우 0으로 처리
+                    const currentVal = u.allow_image ? 1 : 0;
+                    const nextVal = currentVal === 1 ? 0 : 1; 
+                    const btnColor = currentVal === 1 ? '#fab005' : 'rgba(255,255,255,0.1)';
+                    const txtColor = currentVal === 1 ? '#000' : '#888';
+                    
+                    bananaBtn = `<button class="action-btn" onclick="updateUser(${u.id},${u.is_approved},${u.allow_pro},${nextVal})" style="background:${btnColor}; color:${txtColor}; font-weight:bold;">🍌</button>`;
+                }
+
+                tr.innerHTML = `
+                    <td style="font-weight:bold; color:white;">
+                        ${u.username} ${isAdmin ? '👑' : ''}
+                    </td>
+                    <td><span style="color:${u.is_approved?'var(--success)':'var(--error)'}">${u.is_approved?'Active':'Wait'}</span></td>
+                    
+                    <td style="display:flex; align-items:center;">
+                        ${proBadge} 
+                        <span style="color:rgba(255,255,255,0.1); margin:0 8px;">|</span> 
+                        ${bananaBadge}
+                    </td>
+                    
+                    <td>
+                        <button class="action-btn" onclick="updateUser(${u.id},1,${u.allow_pro},${u.allow_image})" style="background:#51cf66; color:#fff;">OK</button>
+                        
+                        <button class="action-btn" onclick="updateUser(${u.id},${u.is_approved},${u.allow_pro?0:1},${u.allow_image})" style="background:${u.allow_pro?'#1c7ed6':'#339af0'}; color:#fff;">Pro</button>
+                        
+                        ${bananaBtn}
+                        
+                        <button class="action-btn delete-user-btn" onclick="deleteUser(${u.id})">Del</button>
+                    </td>`;
+                tbody.appendChild(tr);
+            });
+        }
+        // ▲▲▲ [교체] 여기까지 ▲▲▲
+        
+        async function shutdownServer() { if(!confirm('Shutdown?')) return; try { await fetch('/api/admin/shutdown', { method: 'POST' }); alert('Bye'); window.close(); } catch(e) {} }
+
+        async function ingestKnowledge() {
+            const t = document.getElementById('ingest-title').value;
+            const c = document.getElementById('ingest-content').value;
+            if(!t || !c) return alert('Please enter both title and content.');
+            
+            try {
+                const res = await fetch('/api/admin/ingest', { 
+                    method: 'POST', headers: {'Content-Type':'application/json'}, 
+                    body: JSON.stringify({ title:t, content:c }) 
+                });
+                if(res.ok) { 
+                    alert('Saved successfully.'); 
+                    document.getElementById('ingest-title').value = ''; 
+                    document.getElementById('ingest-content').value = ''; 
+                    await loadKnowledgeList(); 
+                } else { alert('Save failed.'); }
+            } catch(e) { console.error(e); alert('Error occurred.'); }
+        }
+
+        async function loadKnowledgeList() {
+            const tbody = document.getElementById('admin-knowledge-list');
+            try {
+                const res = await fetch('/api/admin/knowledge');
+                if (!res.ok) throw new Error("Failed to fetch");
+                const list = await res.json();
+                tbody.innerHTML = ''; 
+                if (list.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:15px; color:#777;">No stored knowledge found.</td></tr>';
+                    return;
+                }
+                list.forEach(item => {
+                    const tr = document.createElement('tr');
+                    const dateStr = new Date(item.created_at).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+                    tr.innerHTML = `<td>${item.id}</td><td style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${item.title}">${item.title}</td><td>${dateStr}</td><td><button class="action-btn delete-user-btn" onclick="deleteMessage(${item.id})">Del</button></td>`;
+                    tbody.appendChild(tr);
+                });
+            } catch (e) { tbody.innerHTML = '<tr><td colspan="4" style="color:#fa5252; text-align:center;">Failed to load list.</td></tr>'; }
+        }
+
+        async function deleteMessage(id) { 
+            if(!confirm('Permanently delete this knowledge?')) return; 
+            try {
+                const res = await fetch(`/api/admin/messages/${id}`, { method: 'DELETE' });
+                if(res.ok) loadKnowledgeList(); 
+                else alert('Delete failed');
+            } catch(e) { console.error(e); }
+        }
+
+        // ▼▼▼ [수정됨] updateUser 함수 (바나나 값 'i'가 추가됨) ▼▼▼
+        async function updateUser(id, a, p, i) { 
+            // i (allow_image)가 undefined일 경우 0으로 처리 (안전장치)
+            if (i === undefined || i === null) i = 0;
+
+            await fetch('/api/admin/update', {
+                method: 'POST', 
+                headers: {'Content-Type':'application/json'}, 
+                body: JSON.stringify({
+                    id: id, 
+                    is_approved: a, 
+                    allow_pro: p, 
+                    allow_image: i  // 🔥 여기가 빠져 있어서 DB 저장이 안 됐던 겁니다!
+                })
+            }); 
+            
+            openAdminPanel(); // 목록 새로고침
+        }
+        // ▲▲▲ [수정됨] 여기까지 ▲▲▲
+        async function deleteUser(id) { if(confirm('Delete User?')) { await fetch(`/api/admin/users/${id}`, {method:'DELETE'}); openAdminPanel(); } }
+
+        (async function() {
+            const res = await fetch('/api/auth/me');
+            if(res.ok) { currentUser = await res.json(); initApp(); }
+        })();
+
+        // Snow & Copy Fix
+        function createSnowflakes() {
+            const container = document.getElementById('snow-header-snow');
+            if (!container) return; 
+            const count = 40; 
+            for (let i = 0; i < count; i++) {
+                const flake = document.createElement('div');
+                flake.className = 'snowflake';
+                const size = Math.random() * 3 + 2 + 'px'; 
+                flake.style.width = size; flake.style.height = size;
+                flake.style.left = Math.random() * 100 + '%';
+                flake.style.animationDuration = Math.random() * 3 + 2 + 's'; 
+                flake.style.animationDelay = Math.random() * -5 + 's';
+                flake.style.opacity = Math.random() * 0.4 + 0.3;
+                container.appendChild(flake);
+            }
+        }
+        createSnowflakes();
+
+        // ▼▼▼ [수정됨] 복사 로직 개선: 코드 블록은 건드리지 않음 ▼▼▼
+        document.addEventListener('copy', function(e) {
+            const selection = window.getSelection();
+            
+            // 1. 선택된 텍스트가 없거나, 채팅 영역 밖이면 패스
+            if (selection.rangeCount === 0) return;
+            const container = document.getElementById('chat-container');
+            if (!container.contains(selection.anchorNode)) return;
+
+            // 🔥 [추가된 예외 처리] 
+            // 만약 선택된 영역이 '코드 블록(PRE, CODE)' 내부라면? 
+            // -> 이메일용 서식 변환을 하지 말고, 그냥 순수 텍스트로 복사되게 놔둔다.
+            let parent = selection.anchorNode.parentElement;
+            while(parent) {
+                if (parent.tagName === 'PRE' || parent.tagName === 'CODE') {
+                    return; // 함수 종료 -> 브라우저 기본 복사(Ctrl+C) 실행됨
+                }
+                parent = parent.parentElement;
+            }
+
+            // 2. 여기서부터는 '일반 텍스트'이므로 다크모드 해제(보고서용) 로직 실행
+            e.preventDefault();
+
+            // 선택된 영역의 HTML을 가져옴
+            const range = selection.getRangeAt(0);
+            const clonedContent = range.cloneContents();
+            const tempDiv = document.createElement('div');
+            tempDiv.appendChild(clonedContent);
+
+            // 스타일 강제 변환 (Dark -> Light)
+            tempDiv.style.color = '#000000';           
+            tempDiv.style.backgroundColor = 'transparent'; 
+            tempDiv.style.fontFamily = "'Pretendard', sans-serif"; 
+
+            const allElements = tempDiv.querySelectorAll('*');
+            allElements.forEach(el => {
+                el.style.color = '#000000';
+                el.style.backgroundColor = 'transparent';
+                if (el.tagName === 'A') {
+                    el.style.color = '#0000FF';
+                    el.style.textDecoration = 'underline';
+                }
+            });
+
+            // 표 스타일 정리
+            const tables = tempDiv.querySelectorAll('table');
+            tables.forEach(table => {
+                table.style.borderCollapse = 'collapse';
+                table.style.width = '100%';
+                table.style.marginBottom = '10px';
+                table.style.border = '1px solid #000'; 
+            });
+
+            const cells = tempDiv.querySelectorAll('th, td');
+            cells.forEach(cell => {
+                cell.style.border = '1px solid #888'; 
+                cell.style.padding = '8px'; 
+                cell.style.color = '#000';
+                if (cell.tagName === 'TH') {
+                    cell.style.backgroundColor = '#f2f2f2'; 
+                    cell.style.fontWeight = 'bold';
+                    cell.style.borderBottom = '2px solid #000';
+                }
+            });
+
+            // 클립보드에 쓰기
+            if (e.clipboardData) {
+                e.clipboardData.setData('text/html', tempDiv.innerHTML); 
+                e.clipboardData.setData('text/plain', selection.toString()); 
+            }
+        });
+
+            const slashCommands = [
+                { cmd: '/sql', desc: '쿼리 최적화 분석', text: '다음 SQL 쿼리의 실행 계획을 분석하고 성능 최적화 방안을 제시해줘:\n```sql\n\n```' },
+                { cmd: '/log', desc: '에러 로그 원인 파악', text: '다음 에러 로그의 근본 원인을 분석하고 해결책을 알려줘:\n' },
+                { cmd: '/doc', desc: '코드 문서화(Docstring)', text: '다음 코드에 대해 Sphinx 스타일의 Docstring을 작성하고 기능을 요약해줘:\n' },
+                { cmd: '/fix', desc: '버그 수정', text: '이 코드에서 잠재적인 버그를 찾아서 수정해줘:\n' },
+                // ▼▼▼ [추가] 보고서 생성 명령어 ▼▼▼
+                { cmd: '/report', desc: '보고서 초안 작성 (Word)', text: '아래 내용을 삼성웰스토리 표준 보고서 양식(□ 핵심내용, - 상세설명, · 근거)에 맞춰 작성해주고, 수치 데이터는 표로 정리해줘:\n' }
+            ];
+
+            const slashMenu = document.getElementById('slash-menu');
+            let slashIdx = 0;
+
+            inputBox.addEventListener('keyup', (e) => {
+                const val = inputBox.value;
+                
+                // 메뉴가 떠있을 때 키보드 조작
+                if(slashMenu.style.display === 'flex') {
+                    const items = document.querySelectorAll('.slash-item');
+                    if(e.key === 'ArrowUp') {
+                        e.preventDefault(); slashIdx = Math.max(0, slashIdx - 1); updateSlashSelect(); return;
+                    }
+                    if(e.key === 'ArrowDown') {
+                        e.preventDefault(); slashIdx = Math.min(items.length - 1, slashIdx + 1); updateSlashSelect(); return;
+                    }
+                    if(e.key === 'Enter') {
+                        e.preventDefault(); applySlash(slashCommands[slashIdx].text); return;
+                    }
+                    if(e.key === 'Escape') { slashMenu.style.display = 'none'; return; }
+                }
+
+                // '/' 입력 감지
+                if(val === '/') {
+                    slashMenu.innerHTML = slashCommands.map((c, i) => 
+                        `<div class="slash-item ${i===0?'selected':''}" onclick="applySlash(slashCommands[${i}].text)">
+                            <span class="slash-cmd">${c.cmd}</span><span class="slash-desc">${c.desc}</span>
+                        </div>`
+                    ).join('');
+                    slashMenu.style.display = 'flex';
+                    slashIdx = 0;
+                } else if(val === '') {
+                    slashMenu.style.display = 'none';
+                }
+            });
+
+            function updateSlashSelect() {
+                document.querySelectorAll('.slash-item').forEach((el, i) => {
+                    el.className = `slash-item ${i === slashIdx ? 'selected' : ''}`;
+                });
+            }
+
+            function applySlash(text) {
+                inputBox.value = text;
+                slashMenu.style.display = 'none';
+                inputBox.focus();
+            }
+
+            // ▼▼▼ [복붙] 바나나 모드 기능 스크립트 (script 태그 맨 아래에 붙여넣기) ▼▼▼
+
+            let isBananaMode = false;
+
+            // 1. 바나나 모드 토글 함수
+            function toggleBananaMode() {
+                isBananaMode = !isBananaMode;
+                const btn = document.getElementById('banana-btn');
+                const body = document.body;
+                const inputBox = document.getElementById('input-box');
+                
+                if (isBananaMode) {
+                    btn.classList.add('active');
+                    body.classList.add('banana-mode');
+                    inputBox.placeholder = "🍌 [Banana Mode] 상상하는 이미지를 묘사해보세요...";
+                } else {
+                    btn.classList.remove('active');
+                    body.classList.remove('banana-mode');
+                    inputBox.placeholder = "Ask anything...";
+                }
+            }
+
+            // 2. 메시지 전송 함수 (기존 함수 덮어쓰기)
+            window.sendMessage = async function() {
+                const inputBox = document.getElementById('input-box');
+                const msg = inputBox.value.trim();
+                if (isSending || !msg) return;
+                
+                isSending = true;
+                if(!currentSessionId) await createNewSession();
+
+                inputBox.value = ''; 
+                inputBox.style.height = '48px'; 
+                
+                appendMessage('user', msg, false);
+                
+                // 로딩바
+                const loading = document.createElement('div');
+                loading.className = 'message model';
+                loading.innerHTML = `<div class="content">⏳ Generating...</div>`;
+                chatContainer.appendChild(loading);
+                chatContainer.scrollTop = chatContainer.scrollHeight;
+
+                try {
+                    // 모드에 따라 주소 변경
+                    const url = isBananaMode ? '/api/image' : '/api/chat';
+                    const body = isBananaMode 
+                        ? { sessionId: currentSessionId, prompt: msg }
+                        : { sessionId: currentSessionId, message: msg, modelName: document.getElementById('model-select').value, modeName: document.getElementById('mode-select').value };
+
+                    const res = await fetch(url, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) });
+                    const data = await res.json();
+                    
+                    chatContainer.removeChild(loading);
+                    if (!res.ok) throw new Error(data.error || 'Error');
+                    
+                    appendMessage('model', data.response, true);
+                } catch(e) {
+                    if(loading.parentNode) chatContainer.removeChild(loading);
+                    appendMessage('model', `❌ Error: ${e.message}`, false);
+                }
+                isSending = false;
+            };
+
+            // ▲▲▲ [복붙] 여기까지 ▲▲▲
+
+            // ▼▼▼ [추가] 팝업창 떠 있을 때 엔터키 누르면 '확인' 클릭 처리 ▼▼▼
+            document.addEventListener('keydown', function(e) {
+                const overlay = document.getElementById('custom-modal-overlay');
+                // 팝업이 보여지고 있고(flex), 누른 키가 Enter라면?
+                if (overlay && overlay.style.display === 'flex' && e.key === 'Enter') {
+                    e.preventDefault(); // 줄바꿈 등 기본 동작 방지
+                    const confirmBtn = document.getElementById('modal-confirm-btn');
+                    if(confirmBtn) confirmBtn.click(); // 확인 버튼 클릭 트리거
+                }
+            });
+            // ▲▲▲ [추가] 여기까지 ▲▲▲
+    </script>
