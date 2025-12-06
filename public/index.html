@@ -593,6 +593,33 @@
         }
         /* ▲▲▲ [복붙] 여기까지 ▲▲▲ */
 
+        /* ▼▼▼ [추가] 미니 파일 미리보기 스타일 ▼▼▼ */
+        .mini-preview-item {
+            position: relative;
+            width: 40px; height: 40px; /* 작게 고정 */
+            flex-shrink: 0;
+            border-radius: 6px;
+            border: 1px solid rgba(255,255,255,0.2);
+            overflow: hidden;
+            background: #333;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .mini-preview-item img {
+            width: 100%; height: 100%; object-fit: cover;
+        }
+        .mini-preview-item .file-ext {
+            font-size: 0.6rem; color: #fff; font-weight: bold;
+        }
+        .mini-preview-close {
+            position: absolute; top: 0; right: 0;
+            width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5);
+            color: white; border: none;
+            display: none; align-items: center; justify-content: center;
+            cursor: pointer; font-size: 1rem;
+        }
+        .mini-preview-item:hover .mini-preview-close { display: flex; } /* 마우스 올리면 삭제 버튼 뜸 */
+
     </style>
 </head>
 <body>
@@ -719,12 +746,19 @@
 
                     <div id="slash-menu"></div>
                     <button id="banana-btn" onclick="toggleBananaMode()" style="display:none;">🍌</button>
+                    <input type="file" id="file-upload-input" multiple style="display: none;" onchange="handleFileSelect(event)">
+                    <button id="attach-btn" onclick="document.getElementById('file-upload-input').click()" 
+                        style="background:none; border:none; color:var(--text-secondary); cursor:pointer; padding:5px 8px; display:flex; align-items:center; transition:0.2s;">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path></svg>
+                    </button>
+                    <div id="mini-preview-container" style="display:none; align-items:center; gap:5px; margin-right:5px; max-width:150px; overflow-x:auto;">
+                    </div>
                     <textarea id="input-box" placeholder="Ask anything..."></textarea>
-                    
                     <button id="send-btn">
                         <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
                     </button>
                 </div>
+
             </div>
         </div>
     </div>
@@ -1146,94 +1180,138 @@
             });
         }
 
-        async function sendMessage() {
-                    if (isSending) return; 
-                    const msg = inputBox.value.trim();
-                    if(!msg) return;
-                    
-                    isSending = true; 
-                    if(!currentSessionId) await createNewSession();
+        // ▼▼▼ [추가] 파일 처리 및 전송 로직 통합 ▼▼▼
+        let selectedFiles = [];
 
-                    // UI 초기화
-                    inputBox.value = ''; 
-                    inputBox.style.height = '48px'; 
-                    setTimeout(() => { inputBox.value = ''; }, 0); 
-                    
-                    appendMessage('user', msg, false);
-                    chatContainer.scrollTop = chatContainer.scrollHeight;
+        // 파일 선택 핸들러
+        function handleFileSelect(event) {
+            const files = Array.from(event.target.files);
+            if(files.length === 0) return;
+            selectedFiles = [...selectedFiles, ...files];
+            renderMiniPreview();
+            event.target.value = ''; // 초기화
+            document.getElementById('input-box').focus();
+        }
 
-                    // 로딩 말풍선 생성
-                    const loading = document.createElement('div');
-                    loading.className = 'message model';
-                    // 초기 로딩 상태 (점 3개 애니메이션)
-                    loading.innerHTML = `
-                        <div class="content" style="background:transparent; border:none; padding-left:0; display:flex; align-items:center;">
-                            <div class="typing-indicator">
-                                <div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div>
-                            </div>
-                        </div>`;
-                    chatContainer.appendChild(loading);
-                    chatContainer.scrollTop = chatContainer.scrollHeight;
+        // 미니 미리보기 렌더링
+        function renderMiniPreview() {
+            const container = document.getElementById('mini-preview-container');
+            container.innerHTML = '';
+            
+            if (selectedFiles.length > 0) {
+                container.style.display = 'flex';
+            } else {
+                container.style.display = 'none';
+                return;
+            }
 
-                    // ▼▼▼ [재시도 로직 시작] ▼▼▼
-                    const maxRetries = 3;
-                    let attempt = 0;
-                    let success = false;
+            selectedFiles.forEach((file, index) => {
+                const div = document.createElement('div');
+                div.className = 'mini-preview-item';
+                div.title = file.name; // 마우스 올리면 파일명 표시
 
-                    while (attempt < maxRetries && !success) {
-                        attempt++;
-                        try {
-                            const res = await fetch('/api/chat', {
-                                method: 'POST', headers: {'Content-Type':'application/json'},
-                                body: JSON.stringify({ 
-                                    sessionId: currentSessionId, 
-                                    message: msg, 
-                                    modelName: document.getElementById('model-select').value,
-                                    modeName: document.getElementById('mode-select').value 
-                                })
-                            });
-                            
-                            const data = await res.json();
-                            
-                            if (!res.ok) {
-                                // 서버가 400~500 에러를 주면 예외를 발생시켜 catch로 보냄
-                                throw new Error(data.error || `HTTP Error ${res.status}`);
-                            }
-
-                            // 성공 시
-                            if(loading.parentNode) chatContainer.removeChild(loading);
-                            appendMessage('model', data.response, true); 
-                            loadSessions(); 
-                            success = true;
-
-                        } catch(e) {
-                            console.warn(`Attempt ${attempt} failed:`, e);
-
-                            if (attempt < maxRetries) {
-                                // 재시도 중일 때: 로딩 말풍선 텍스트 변경
-                                const contentDiv = loading.querySelector('.content');
-                                if (contentDiv) {
-                                    contentDiv.innerHTML = `
-                                        <div class="typing-indicator">
-                                            <div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div>
-                                        </div>
-                                        <span style="font-size:0.8rem; color:#ff6b6b; margin-left:10px; font-weight:600;">
-                                            ⚠️ 연결 실패. 재시도 중 (${attempt}/${maxRetries})...
-                                        </span>`;
-                                }
-                                // 1.5초 대기 후 재시도 (너무 빨리 재시도하면 서버에 부하가 가므로)
-                                await new Promise(r => setTimeout(r, 1500));
-                            } else {
-                                // 최종 실패 (3회 모두 실패)
-                                if(loading.parentNode) chatContainer.removeChild(loading);
-                                appendMessage('model', `**Network Error**: 서버 응답이 없습니다. (3회 재시도 실패)\n- 원인: ${e.message}`, false);
-                            }
-                        }
-                    }
-                    // ▲▲▲ [재시도 로직 끝] ▲▲▲
-                    
-                    isSending = false; 
+                // 이미지 여부 확인
+                if (file.type.startsWith('image/')) {
+                    const img = document.createElement('img');
+                    img.src = URL.createObjectURL(file);
+                    div.appendChild(img);
+                } else {
+                    const span = document.createElement('span');
+                    span.className = 'file-ext';
+                    span.innerText = file.name.split('.').pop().slice(0,3).toUpperCase();
+                    div.appendChild(span);
                 }
+
+                // 삭제 오버레이 (클릭 시 삭제)
+                const closeOverlay = document.createElement('div');
+                closeOverlay.className = 'mini-preview-close';
+                closeOverlay.innerHTML = '×';
+                closeOverlay.onclick = (e) => { 
+                    e.stopPropagation(); 
+                    selectedFiles.splice(index, 1); 
+                    renderMiniPreview(); 
+                };
+                div.appendChild(closeOverlay);
+
+                container.appendChild(div);
+            });
+        }
+
+        // sendMessage 함수 전면 교체 (FormData 사용)
+        window.sendMessage = async function() {
+            const inputBox = document.getElementById('input-box');
+            const msg = inputBox.value.trim();
+
+            // 텍스트도 없고 파일도 없으면 중단
+            if (isSending || (!msg && selectedFiles.length === 0)) return;
+            
+            isSending = true;
+            if(!currentSessionId) await createNewSession();
+
+            inputBox.value = ''; 
+            inputBox.style.height = '48px'; 
+            
+            // 사용자 화면 표시용 메시지 구성
+            let displayMsg = msg;
+            if (selectedFiles.length > 0) {
+                // 채팅창에는 깔끔하게 파일명만 아이콘과 함께 표시
+                const fileBadges = selectedFiles.map(f => `\`📎 ${f.name}\``).join(' ');
+                displayMsg = `${fileBadges}\n\n${msg}`;
+            }
+            
+            appendMessage('user', displayMsg, false);
+            
+            // 전송 준비
+            const filesToSend = [...selectedFiles];
+            selectedFiles = []; // 배열 비우기
+            renderMiniPreview(); // 미리보기 끄기
+
+            // 로딩바
+            const loading = document.createElement('div');
+            loading.className = 'message model';
+            loading.innerHTML = `<div class="content">⏳ Analyzing data...</div>`;
+            chatContainer.appendChild(loading);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+
+            try {
+                let res;
+
+                // 바나나 모드(이미지 생성)는 기존 JSON 방식
+                if (typeof isBananaMode !== 'undefined' && isBananaMode) {
+                    res = await fetch('/api/image', { 
+                        method: 'POST', headers: {'Content-Type':'application/json'}, 
+                        body: JSON.stringify({ sessionId: currentSessionId, prompt: msg }) 
+                    });
+                } else {
+                    // [핵심] 일반 대화 (파일 포함 가능) -> FormData 전송
+                    const formData = new FormData();
+                    formData.append('sessionId', currentSessionId);
+                    formData.append('message', msg); // 텍스트
+                    formData.append('modelName', document.getElementById('model-select').value);
+                    formData.append('modeName', document.getElementById('mode-select').value);
+                    
+                    // 파일 추가 (upload.array('files')와 매칭)
+                    filesToSend.forEach(file => {
+                        formData.append('files', file);
+                    });
+
+                    // fetch 호출 (Content-Type 헤더 생략 -> 브라우저 자동 설정)
+                    res = await fetch('/api/chat', { method: 'POST', body: formData });
+                }
+
+                const data = await res.json();
+                chatContainer.removeChild(loading);
+                
+                if (!res.ok) throw new Error(data.error || 'Server Error');
+                appendMessage('model', data.response, true);
+                
+            } catch(e) {
+                if(loading.parentNode) chatContainer.removeChild(loading);
+                appendMessage('model', `❌ Error: ${e.message}`, false);
+            }
+            isSending = false;
+        };
+        // ▲▲▲ [수정 완료] ▲▲▲
 
         function appendMessage(role, content, animate) {
             const div = document.createElement('div');
@@ -1674,47 +1752,91 @@
                 }
             }
 
-            // 2. 메시지 전송 함수 (기존 함수 덮어쓰기)
+            // ▼▼▼ [수정] sendMessage 함수 (바나나 모드도 파일 전송 가능하게 변경) ▼▼▼
             window.sendMessage = async function() {
                 const inputBox = document.getElementById('input-box');
                 const msg = inputBox.value.trim();
-                if (isSending || !msg) return;
+
+                // 1. 전송 중이거나, 내용(텍스트/파일)이 둘 다 없으면 중단
+                if (isSending || (!msg && selectedFiles.length === 0)) return;
                 
                 isSending = true;
                 if(!currentSessionId) await createNewSession();
 
+                // UI 초기화
                 inputBox.value = ''; 
                 inputBox.style.height = '48px'; 
+                inputBox.style.overflowY = 'hidden';
                 
-                appendMessage('user', msg, false);
+                // 사용자 메시지 표시
+                let displayMsg = msg;
+                if (selectedFiles.length > 0) {
+                    const fileBadges = selectedFiles.map(f => `\`📎 ${f.name}\``).join(' ');
+                    displayMsg = `${fileBadges}\n\n${msg}`;
+                }
+                appendMessage('user', displayMsg, false);
                 
-                // 로딩바
+                // 전송할 파일 백업 후 초기화
+                const filesToSend = [...selectedFiles];
+                selectedFiles = []; 
+                renderMiniPreview(); 
+
+                // 로딩바 표시
                 const loading = document.createElement('div');
                 loading.className = 'message model';
-                loading.innerHTML = `<div class="content">⏳ Generating...</div>`;
+                // 바나나 모드일 때는 문구 변경
+                const loadingText = (typeof isBananaMode !== 'undefined' && isBananaMode) ? "🍌 Dreaming..." : "⏳ Analyzing...";
+                loading.innerHTML = `<div class="content">${loadingText}</div>`;
                 chatContainer.appendChild(loading);
                 chatContainer.scrollTop = chatContainer.scrollHeight;
 
                 try {
-                    // 모드에 따라 주소 변경
-                    const url = isBananaMode ? '/api/image' : '/api/chat';
-                    const body = isBananaMode 
-                        ? { sessionId: currentSessionId, prompt: msg }
-                        : { sessionId: currentSessionId, message: msg, modelName: document.getElementById('model-select').value, modeName: document.getElementById('mode-select').value };
+                    let res;
+                    
+                    // ★ [핵심 변경] 모든 모드에서 FormData 사용 (파일 전송을 위해)
+                    const formData = new FormData();
+                    formData.append('sessionId', currentSessionId);
+                    formData.append('message', msg); // 프롬프트 텍스트 (api/image에서는 'prompt'로 받을 수 있게 아래에서 처리하거나 서버를 맞춤)
+                    
+                    // 서버의 /api/image는 req.body.prompt를 기대하므로, 
+                    // 바나나 모드일 때는 'prompt'라는 이름으로도 값을 넣어줍니다.
+                    if (typeof isBananaMode !== 'undefined' && isBananaMode) {
+                        formData.append('prompt', msg); 
+                    }
 
-                    const res = await fetch(url, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) });
+                    formData.append('modelName', document.getElementById('model-select').value);
+                    formData.append('modeName', document.getElementById('mode-select').value);
+                    
+                    // 파일 추가
+                    filesToSend.forEach(file => {
+                        formData.append('files', file);
+                    });
+
+                    // API 엔드포인트 결정
+                    const endpoint = (typeof isBananaMode !== 'undefined' && isBananaMode) ? '/api/image' : '/api/chat';
+
+                    // 전송 (Content-Type 헤더 생략 -> 브라우저 자동 설정)
+                    res = await fetch(endpoint, { 
+                        method: 'POST', 
+                        body: formData 
+                    });
+
                     const data = await res.json();
-                    
                     chatContainer.removeChild(loading);
-                    if (!res.ok) throw new Error(data.error || 'Error');
                     
+                    if (!res.ok) throw new Error(data.error || 'Server Error');
                     appendMessage('model', data.response, true);
+                    
                 } catch(e) {
                     if(loading.parentNode) chatContainer.removeChild(loading);
                     appendMessage('model', `❌ Error: ${e.message}`, false);
+                    console.error(e);
+                } finally {
+                    isSending = false;
+                    document.getElementById('input-box').focus();
                 }
-                isSending = false;
             };
+            // ▲▲▲ [수정 완료] ▲▲▲
 
             // ▲▲▲ [복붙] 여기까지 ▲▲▲
 
@@ -1729,4 +1851,16 @@
                 }
             });
             // ▲▲▲ [추가] 여기까지 ▲▲▲
+
+            // ▼▼▼ [긴급 수정] 전송 버튼을 '바나나 기능'과 다시 연결하기 ▼▼▼
+            (function fixSendButton() {
+                const oldBtn = document.getElementById('send-btn');
+                // 1. 기존 버튼을 복제해서 '옛날 기억(텍스트 전송)'을 지워버림
+                const newBtn = oldBtn.cloneNode(true);
+                // 2. 새 버튼으로 교체
+                oldBtn.parentNode.replaceChild(newBtn, oldBtn);
+                // 3. '새로운 기능(이미지+텍스트)' 연결
+                newBtn.addEventListener('click', window.sendMessage);
+            })();
+            // ▲▲▲ [긴급 수정] 여기까지 ▲▲▲
     </script>

@@ -34,6 +34,24 @@ Google Gemini Pro/Flash 및 Imagen 3(또는 DALL-E 3)를 기반으로 하며, �
 - **Admin Dashboard**: 서버 리소스(CPU, RAM, Disk) 모니터링, 사용자 승인/관리, 시스템 종료.
 - **RAG (지식 주입)**: 관리자 패널을 통해 사내 기술 문서(Knowledge Base) 업로드 및 검색 증강 생성 적용.
 
+### 5. 📎 멀티모달 분석 (Multi-modal Support) [NEW]
+파일 첨부 지원: 입력창 좌측의 클립(📎) 버튼을 통해 이미지 및 파일을 첨부하여 AI에게 분석을 요청할 수 있습니다.
+
+실시간 미리보기: 첨부된 파일은 입력창 상단에 미니 썸네일로 즉시 확인 가능합니다.
+
+Zero-Storage Security: 업로드된 파일은 서버 디스크나 데이터베이스에 절대 저장되지 않습니다. 오직 메모리(RAM)에서 일회성으로 처리된 후 즉시 소멸되어, 사내 보안 규정을 철저히 준수합니다.
+
+2. 🎨 NanoBanana Pro 섹션 업데이트
+기존 내용을 아래와 같이 수정하여 최신 모델(Gemini 3 Preview) 적용을 명시하세요.
+
+2. 🎨 NanoBanana Pro (Image Generation)
+AI 이미지 생성: 채팅창 입력란 상단의 바나나(🍌) 버튼 클릭 시 활성화 (입력창 테두리가 금색으로 빛남).
+
+최신 모델 탑재: gemini-3-pro-image-preview 모델을 적용하여 이전보다 훨씬 높은 품질의 이미지를 생성합니다.
+
+Image-to-Image: 텍스트뿐만 아니라 참조할 이미지(파일)를 첨부하여 "이 스케치 느낌으로 로고 만들어줘"와 같은 고난도 작업이 가능합니다.
+
+
 ---
 
 ## 🛠 기술 스택 (Tech Stack)
@@ -41,9 +59,9 @@ Google Gemini Pro/Flash 및 Imagen 3(또는 DALL-E 3)를 기반으로 하며, �
 | 영역 | 기술 스택 |
 |---|---|
 | **Frontend** | HTML5, CSS3 (Glassmorphism), Vanilla JS |
-| **Backend** | Node.js, Express.js |
+| **Backend** | Node.js, Express.js Multer (In-Memory File Processing)|
 | **Database** | SQLite3 (FTS5 검색 엔진 포함) |
-| **AI Models** | Gemini 2.5 Flash, Gemini 3 Pro, Imagen 3 / DALL-E 3 |
+| **AI Models** | Gemini 2.5 Flash, Gemini 3 Pro, gemini-2.5-flash-image |
 | **Infra** | Nginx (Reverse Proxy), PM2 (Process Manager), Let's Encrypt (SSL) |
 
 ---
@@ -178,3 +196,14 @@ shoo.kim (슈퍼 관리자) 계정으로 로그인합니다.
 RAG 지식 데이터(Knowledge Base) 주입 및 관리
 
 서버 긴급 종료
+
+📎 파일 분석 (Multi-modal Analysis) [NEW]
+채팅 입력창 왼쪽의 **클립 아이콘(📎)**을 클릭합니다.
+
+분석할 이미지(아키텍처 구성도, 에러 로그 스크린샷 등)나 파일을 선택합니다.
+
+입력창 위에 작은 미리보기 썸네일이 뜨면, 궁금한 점을 텍스트로 입력하고 전송합니다.
+
+예: "이 아키텍처 그림에서 보안 취약점이 있는지 분석해줘"
+
+Tip: 바나나 모드(🍌) 상태에서 이미지를 첨부하면, 해당 이미지를 참조하여 새로운 이미지를 생성할 수 있습니다.
