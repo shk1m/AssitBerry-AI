@@ -280,11 +280,36 @@
         }
 
         /* User Bubble: Gradient */
-        .message.user .content { 
-            background: var(--accent-gradient); 
-            color: white; 
+        .message.user .content {
+            background: var(--accent-gradient);
+            color: white;
             border-bottom-right-radius: 4px; 
             box-shadow: 0 4px 15px rgba(92, 124, 250, 0.2);
+            
+            /* 내용물 배치 설정 */
+            display: flex; 
+            flex-direction: column;
+            transition: all 0.3s ease;
+            
+            /* 🔥 [삭제됨] padding-bottom: 0 !important;  <-- 이 줄을 지웠습니다! */
+            /* 이제 기본적으로 위아래 패딩이 12px씩 들어가서 글씨가 정중앙에 옵니다. */
+        }
+
+        /* 🔥 [추가] 버튼이 있는 경우에만 하단 패딩 제거 */
+        .message.user .content.has-footer {
+            padding-bottom: 0 !important;
+        }
+
+        /* (아래 코드는 기존 유지) */
+
+        /* ▼▼▼ [수정] 내용물이 접혔을 때 ▼▼▼ */
+        .message.user .content.collapsed .markdown-body {
+            max-height: 200px;       
+            overflow: hidden;
+            
+            /* 아래쪽을 자연스럽게 흐리게 처리 */
+            mask-image: linear-gradient(to bottom, black 60%, transparent 100%);
+            -webkit-mask-image: linear-gradient(to bottom, black 60%, transparent 100%);
         }
 
         /* AI Bubble: Glass Card */
@@ -309,6 +334,69 @@
         .message.model th { background: rgba(255,255,255,0.05); padding: 10px; font-weight: 600; text-align: left; border-bottom: 1px solid var(--border-subtle); color: var(--text-secondary); }
         .message.model td { padding: 10px; border-bottom: 1px solid var(--border-subtle); color: var(--text-primary); }
         .message.model tr:last-child td { border-bottom: none; }
+
+        /* ▼▼▼ [수정] 긴 메시지(코드) 접기 기능 스타일 (깨짐 방지) ▼▼▼ */
+        .message.user .content.collapsed {
+            max-height: 200px;       
+            overflow: hidden;        
+            
+            /* 접혔을 때는 버튼과 자연스럽게 이어지도록 하단 모서리를 직각으로 변경 */
+            border-bottom-left-radius: 4px !important;
+            border-bottom-right-radius: 4px !important; 
+            
+            /* 하단이 자연스럽게 흐려지는 효과 (선택 사항 - 깨짐 방지 위해 제거하거나 약하게) */
+            mask-image: linear-gradient(to bottom, black 80%, transparent 100%);
+            -webkit-mask-image: linear-gradient(to bottom, black 80%, transparent 100%);
+        }
+
+        .message.user .content.collapsed {
+            max-height: 200px;       
+            overflow: hidden;        
+            
+            /* 접혔을 때는 버튼과 자연스럽게 이어지도록 하단 모서리를 직각으로 변경 */
+            border-bottom-left-radius: 4px !important;
+            border-bottom-right-radius: 4px !important; 
+            
+            /* 하단이 자연스럽게 흐려지는 효과 (선택 사항 - 깨짐 방지 위해 제거하거나 약하게) */
+            mask-image: linear-gradient(to bottom, black 80%, transparent 100%);
+            -webkit-mask-image: linear-gradient(to bottom, black 80%, transparent 100%);
+        }
+
+        /* ▼▼▼ [수정] 접기/펼치기 버튼 (너비 계산 보정) ▼▼▼ */
+        .read-more-btn {
+            /* box-sizing을 border-box로 하여 패딩 포함 크기 계산 */
+            box-sizing: border-box; 
+            
+            /* 좌우 패딩(18px)을 고려하여 꽉 채우기 */
+            width: calc(100% + 36px); 
+            margin-left: -18px;
+            margin-right: -18px;
+            
+            background: var(--accent-gradient); /* 말풍선과 동일 배경 */
+            
+            border: none;
+            border-top: 1px solid rgba(255, 255, 255, 0.3); 
+            
+            color: #fff;
+            font-size: 0.85rem;
+            font-weight: 700;
+            padding: 12px 0; /* 터치하기 좋게 영역 확장 */
+            cursor: pointer;
+            transition: 0.2s;
+            margin-top: 5px; 
+            
+            border-bottom-left-radius: 18px;  
+            border-bottom-right-radius: 4px;
+            
+            /* 그림자 유지 */
+            box-shadow: 0 4px 15px rgba(92, 124, 250, 0.2); 
+        }
+        .read-more-btn:hover { filter: brightness(1.1); }
+        
+        /* 텍스트 감싸는 래퍼 (JS에서 추가됨) */
+        .markdown-body {
+            width: 100%;
+        }
 
         /* Code Block */
         pre { 
@@ -1321,11 +1409,77 @@
         };
         // ▲▲▲ [수정 완료] ▲▲▲
 
+        // ▼▼▼ [수정] appendMessage 함수 내부: 긴 메시지 토글 및 구조 개선 ▼▼▼
         function appendMessage(role, content, animate) {
             const div = document.createElement('div');
             div.className = `message ${role}`;
+            
             const contentDiv = document.createElement('div');
             contentDiv.className = 'content';
+            
+            // ★ 핵심: 텍스트 내용을 별도 div로 감싸서 패딩 문제 해결
+            const textWrapper = document.createElement('div');
+            textWrapper.className = 'markdown-body'; // CSS 적용 대상
+            
+            const MAX_LENGTH = 1000; // 1000자 이상일 때 접기
+            
+            if (role === 'user' && content.length > MAX_LENGTH) {
+                // 1. 접힌 상태로 시작
+                contentDiv.classList.add('collapsed'); 
+                // 🔥 [추가] 버튼이 달리므로 하단 패딩을 없애는 클래스 추가
+                contentDiv.classList.add('has-footer');
+                
+                // 텍스트 렌더링 (줄바꿈 처리 포함)
+                // (사용자 메시지는 보통 마크다운보다는 텍스트 그대로 보여주는 게 안전할 수 있음)
+                textWrapper.innerText = content; 
+                contentDiv.appendChild(textWrapper);
+                
+                // 2. 토글 버튼 생성
+                const toggleBtn = document.createElement('button');
+                toggleBtn.className = 'read-more-btn';
+                toggleBtn.innerHTML = `🔽 전체 보기 (${content.length.toLocaleString()}자)`;
+                
+                // ... (버튼 생성 부분)
+                toggleBtn.onclick = (e) => {
+                    e.stopPropagation(); 
+                    const isCollapsed = contentDiv.classList.contains('collapsed');
+                    
+                    if (isCollapsed) {
+                        // [펼치기]
+                        contentDiv.classList.remove('collapsed');
+                        toggleBtn.innerHTML = `🔼 접기`;
+                        
+                        // 흐림 효과 제거
+                        textWrapper.style.maskImage = 'none';
+                        textWrapper.style.webkitMaskImage = 'none';
+                        
+                        // ★ 펼쳤을 때는 내용을 읽어야 하므로 '시작 부분'이 보이게 함 (사용성 고려)
+                        // (만약 무조건 끝으로 가고 싶다면 'end'로 변경 가능하지만, 읽기 불편할 수 있음)
+                        // div.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    } else {
+                        // [접기]
+                        contentDiv.classList.add('collapsed');
+                        toggleBtn.innerHTML = `🔽 전체 보기 (${content.length.toLocaleString()}자)`;
+                        
+                        textWrapper.style.maskImage = '';
+                        textWrapper.style.webkitMaskImage = '';
+                        
+                        // 접었을 때는 버튼이 잘 보이도록 위치 조정
+                        toggleBtn.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }
+                };
+                
+                contentDiv.appendChild(toggleBtn);
+            } else {
+                // 짧은 메시지는 그냥 표시
+                if (role === 'user') {
+                    textWrapper.innerText = content;
+                } else {
+                    // 모델 메시지는 마크다운 렌더링을 위해 나중에 처리
+                    // (아래 renderMarkdown에서 처리됨)
+                }
+                contentDiv.appendChild(textWrapper);
+            }
             
             div.appendChild(contentDiv);
             chatContainer.appendChild(div);
@@ -1347,6 +1501,9 @@
                     msgCopyBtn.onclick = () => safeCopy(content, msgCopyBtn);
                     contentDiv.appendChild(msgCopyBtn);
 
+                    textWrapper.innerHTML = marked.parse(content);
+                    textWrapper.querySelectorAll('pre code').forEach(el => hljs.highlightElement(el));
+
                     // 2. [추가] Word 다운로드 버튼
                     const wordBtn = document.createElement('button');
                     wordBtn.className = 'msg-copy-btn'; // 스타일 공유 (위치만 조정 필요)
@@ -1367,6 +1524,7 @@
                     };
                     contentDiv.appendChild(wordBtn);
                 }
+                
 
                 contentDiv.querySelectorAll('pre').forEach(pre => {
                     const btn = document.createElement('button');
@@ -1380,7 +1538,7 @@
                     }
                 });
             };
-            renderMarkdown();
+            if (role === 'model') renderMarkdown(); // 모델일 때만 실행
             chatContainer.scrollTop = chatContainer.scrollHeight;
         }
 
@@ -1899,6 +2057,14 @@
                     
                     if (!res.ok) throw new Error(data.error || 'Server Error');
                     appendMessage('model', data.response, true);
+                    
+                    // ▼▼▼ [수정] 제목이 DB에 저장될 시간을 벌어줌 (0.5초 딜레이) ▼▼▼
+                    if (chatContainer.children.length <= 2) {
+                        setTimeout(() => {
+                            loadSessions(); 
+                        }, 500); 
+                    }
+                    // ▲▲▲ [수정] 여기까지 ▲▲▲
                     
                 } catch(e) {
                     if(loading.parentNode) chatContainer.removeChild(loading);

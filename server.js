@@ -476,8 +476,37 @@ app.post('/api/chat', isAuthenticated, upload.array('files'), async (req, res) =
         
         await saveMessage(sessionId, 'user', dbContent, isAdminUser);
 
-        // 3. 이전 대화 기록 불러오기 (기존 로직 유지)
+        // 3. 이전 대화 기록 불러오기
         const historyRows = await new Promise((resolve) => db.all("SELECT role, content FROM messages WHERE session_id = ? ORDER BY created_at ASC", [sessionId], (err, r) => resolve(r||[])));
+        
+        // ▼▼▼ [추가] Custom 모드: 첫 번째 메시지를 시스템 페르소나로 '영구 고정' ▼▼▼
+        if (modeName === 'custom') {
+            let personaDefinition = message; // 기본값: 지금 막 보낸 메시지 (첫 턴)
+
+            // 만약 대화 기록이 이미 존재한다면? -> 기록 중 '가장 첫 번째 유저 메시지'를 찾아냄
+            if (historyRows.length > 0) {
+                const firstUserMsg = historyRows.find(row => row.role === 'user');
+                // 첫 메시지가 있으면 그걸 페르소나로 덮어씌움 (지금 사용자가 딴소리해도 무시됨)
+                if (firstUserMsg) {
+                    personaDefinition = firstUserMsg.content;
+                }
+            }
+
+            // 시스템 지시사항(Instruction)을 강제로 교체
+            baseInstruction = `
+            🚨 [CRITICAL SYSTEM OVERRIDE]
+            Forget previous instructions about being 'AssistBerry'.
+            Your ONLY role in this session is defined below. 
+            You must act exactly according to this definition throughout the entire conversation.
+            
+            [PERMANENT ROLE DEFINITION]:
+            ${personaDefinition}
+            
+            If the user asks who you are, answer ONLY based on the role above.
+            Do NOT mention that you are an AI unless the role definition says so.
+            `;
+        }
+        // ▲▲▲ [추가] 여기까지 ▲▲▲
         const sessionData = await new Promise((resolve) => db.get("SELECT summary, title FROM sessions WHERE id = ?", [sessionId], (err, r) => resolve(r)));
         let userMemory = await getUserMemory(userId);
         let contents = [];
@@ -529,40 +558,59 @@ app.post('/api/chat', isAuthenticated, upload.array('files'), async (req, res) =
 
         const response = await ai.models.generateContent({
             model: targetEngine,
-            config: { systemInstruction: finalInstruction },
+            config: { 
+                systemInstruction: finalInstruction,
+                // ▼▼▼ [긴급 추가] 구글 검색(Grounding) 기능 활성화 ▼▼▼
+                tools: [{ googleSearch: {} }, { codeExecution: {} }]
+                // ▲▲▲ [추가] 이 한 줄이 있어야 실시간 정보를 가져옵니다! ▲▲▲
+            },
             contents: contents 
         });
 
-        // ▼▼▼ [수정] 응답 텍스트 추출 방식 변경 (오류 해결 핵심) ▼▼▼
+        // ▼▼▼ [수정] 텍스트뿐만 아니라 '실행된 코드'도 함께 가져오기 ▼▼▼
         let responseText = "";
         
-        // SDK 버전에 따라 응답 구조가 다를 수 있으므로 안전하게 추출
-        if (typeof response.text === 'function') {
-            responseText = response.text();
-        } else if (response.candidates && response.candidates.length > 0) {
-            // candidates 배열에서 직접 텍스트 추출
-            const candidate = response.candidates[0];
-            if (candidate.content && candidate.content.parts && candidate.content.parts.length > 0) {
-                responseText = candidate.content.parts.map(part => part.text || "").join("");
+        const candidate = response.candidates && response.candidates[0];
+        if (candidate && candidate.content && candidate.content.parts) {
+            for (const part of candidate.content.parts) {
+                // 1. 일반 텍스트 답변
+                if (part.text) {
+                    responseText += part.text;
+                } 
+                // 2. [핵심] Gemini가 백그라운드에서 실행한 파이썬 코드
+                else if (part.executableCode) {
+                    responseText += `\n\n**[Code Executed]**\n\`\`\`python\n${part.executableCode.code}\n\`\`\`\n`;
+                }
+                // 3. (선택사항) 코드 실행 결과값
+                else if (part.codeExecutionResult) {
+                    responseText += `\n> **Output:** \`${part.codeExecutionResult.output?.trim()}\`\n\n`;
+                }
             }
-        } 
-        
-        // 만약 텍스트가 여전히 비어있다면 (안전 필터 등으로 인해)
+        } else if (typeof response.text === 'function') {
+            // 구조가 다를 경우를 대비한 백업
+            responseText = response.text();
+        }
+
         if (!responseText) {
-            responseText = "⚠️ AI가 응답을 생성하지 못했습니다. (보안 정책 또는 이미지 인식 오류)";
-            console.log("Raw Response:", JSON.stringify(response, null, 2)); // 디버깅용 로그
+            responseText = "⚠️ 응답을 불러오지 못했습니다.";
         }
         // ▲▲▲ [수정 완료] ▲▲▲
 
         await saveMessage(sessionId, 'model', responseText, isAdminUser);
         updateUserMemory(userId, dbContent, responseText);
 
-        // ▼▼▼ [수정] 제목 자동 생성 로직 (조건 수정 및 동기화 처리) ▼▼▼
-        // historyRows.length === 1 : 방금 저장한 내 메시지 1개만 있다는 뜻 (즉, 첫 대화)
+        // ... (server.js 하단 제목 생성 로직 내부)
+
+        // ... (server.js 하단 제목 생성 로직)
+
         if (historyRows.length <= 1) {
             try {
-                // 1. 제목 생성용 프롬프트 (가벼운 Flash 모델 사용)
-                // ★ await를 사용하여 제목이 생성되고 DB에 저장될 때까지 기다립니다.
+                // 1. 입력 텍스트가 너무 길면 앞부분 500자만 잘라서 요약 요청
+                let summaryInput = message || "";
+                if (summaryInput.length > 500) {
+                    summaryInput = summaryInput.substring(0, 500);
+                }
+
                 const titleModel = ai.getGenerativeModel({ model: 'gemini-2.5-flash' });
                 const titlePrompt = `
                 Summarize the following text into a concise title for a chat history list.
@@ -570,16 +618,31 @@ app.post('/api/chat', isAuthenticated, upload.array('files'), async (req, res) =
                 Max Length: 15 characters.
                 No quotes, no markdown.
                 
-                Text: ${message}
+                Text: ${summaryInput}
                 `;
                 
                 const titleRes = await titleModel.generateContent(titlePrompt);
                 let newTitle = titleRes.response.text().trim();
                 
-                // 특수문자 제거 및 길이 제한
-                newTitle = newTitle.replace(/["'*]/g, "").substring(0, 20);
+                // 2. 특수문자 제거
+                newTitle = newTitle.replace(/["'*]/g, "");
                 
-                // 2. DB 업데이트 (Promise로 감싸서 확실히 끝난 뒤 진행)
+                // 3. [핵심 수정] 만약 AI가 빈칸을 줬거나 에러가 났다면? -> 강제 설정
+                // ▼▼▼ [추가] 제목이 비어있으면 강제로 채워넣는 로직 (이게 없어서 안 떴음) ▼▼▼
+                if (!newTitle || newTitle.length === 0) {
+                     if (files.length > 0 && summaryInput.trim() === "") {
+                         newTitle = "이미지 분석";
+                     } else {
+                         // 메시지 앞부분 15글자로 강제 설정
+                         newTitle = summaryInput.substring(0, 15) + "...";
+                     }
+                }
+                // ▲▲▲ [추가] 여기까지 ▲▲▲
+
+                // 길이 제한 (20자)
+                if (newTitle.length > 20) newTitle = newTitle.substring(0, 20);
+
+                // 4. DB 업데이트 (동기 처리 보장)
                 await new Promise((resolve) => {
                     db.run("UPDATE sessions SET title = ? WHERE id = ?", [newTitle, sessionId], (err) => {
                         resolve();
@@ -587,15 +650,15 @@ app.post('/api/chat', isAuthenticated, upload.array('files'), async (req, res) =
                 });
                 
             } catch (e) {
-                // 실패 시 fallback 처리
+                // 완전 실패 시 Fallback
                 let fallback = message.trim();
-                if (files.length > 0 && fallback === "") fallback = "Image Analysis";
                 if (fallback.length > 10) fallback = fallback.substring(0, 10) + "...";
+                if (files.length > 0 && fallback === "") fallback = "첨부파일 분석";
+                if (fallback === "") fallback = "New Chat"; // 최후의 보루
                 
                 db.run("UPDATE sessions SET title = ? WHERE id = ?", [fallback, sessionId]);
             }
         }
-        // ▲▲▲ [수정 완료] ▲▲▲
 
         res.json({ response: responseText });
 
