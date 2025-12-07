@@ -3,3 +3,4 @@ node_modules/
 chat.db
 fix_db.js
 .DS_Store
+uploads/

@@ -557,10 +557,45 @@ app.post('/api/chat', isAuthenticated, upload.array('files'), async (req, res) =
         await saveMessage(sessionId, 'model', responseText, isAdminUser);
         updateUserMemory(userId, dbContent, responseText);
 
-        // ... (아래 코드는 유지) ...
-
-        // 제목 요약 로직 (기존 유지)
-        if (historyRows.length <= 1) { /* ... 기존 제목 생성 코드 ... */ }
+        // ▼▼▼ [수정] 제목 자동 생성 로직 (조건 수정 및 동기화 처리) ▼▼▼
+        // historyRows.length === 1 : 방금 저장한 내 메시지 1개만 있다는 뜻 (즉, 첫 대화)
+        if (historyRows.length <= 1) {
+            try {
+                // 1. 제목 생성용 프롬프트 (가벼운 Flash 모델 사용)
+                // ★ await를 사용하여 제목이 생성되고 DB에 저장될 때까지 기다립니다.
+                const titleModel = ai.getGenerativeModel({ model: 'gemini-2.5-flash' });
+                const titlePrompt = `
+                Summarize the following text into a concise title for a chat history list.
+                Language: Korean.
+                Max Length: 15 characters.
+                No quotes, no markdown.
+                
+                Text: ${message}
+                `;
+                
+                const titleRes = await titleModel.generateContent(titlePrompt);
+                let newTitle = titleRes.response.text().trim();
+                
+                // 특수문자 제거 및 길이 제한
+                newTitle = newTitle.replace(/["'*]/g, "").substring(0, 20);
+                
+                // 2. DB 업데이트 (Promise로 감싸서 확실히 끝난 뒤 진행)
+                await new Promise((resolve) => {
+                    db.run("UPDATE sessions SET title = ? WHERE id = ?", [newTitle, sessionId], (err) => {
+                        resolve();
+                    });
+                });
+                
+            } catch (e) {
+                // 실패 시 fallback 처리
+                let fallback = message.trim();
+                if (files.length > 0 && fallback === "") fallback = "Image Analysis";
+                if (fallback.length > 10) fallback = fallback.substring(0, 10) + "...";
+                
+                db.run("UPDATE sessions SET title = ? WHERE id = ?", [fallback, sessionId]);
+            }
+        }
+        // ▲▲▲ [수정 완료] ▲▲▲
 
         res.json({ response: responseText });
 

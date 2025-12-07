@@ -742,6 +742,7 @@
                         <option value="general" selected>General</option>
                         <option value="tech">Tech</option>
                         <option value="business">Biz</option>
+                        <option value="custom">Custom</option>
                     </select>
 
                     <div id="slash-menu"></div>
@@ -1305,6 +1306,13 @@
                 if (!res.ok) throw new Error(data.error || 'Server Error');
                 appendMessage('model', data.response, true);
                 
+                // ▼▼▼ [추가] 첫 번째 대화였다면 사이드바 제목 갱신을 위해 목록 다시 불러오기 ▼▼▼
+                // (현재 메시지가 2개(질문+답변) 이하라면 첫 대화로 간주)
+                if (chatContainer.children.length <= 2) {
+                    loadSessions(); 
+                }
+                // ▲▲▲ [추가] 여기까지 ▲▲▲
+                
             } catch(e) {
                 if(loading.parentNode) chatContainer.removeChild(loading);
                 appendMessage('model', `❌ Error: ${e.message}`, false);
@@ -1378,13 +1386,7 @@
 
         inputBox.addEventListener('compositionstart', () => { isComposing = true; });
         inputBox.addEventListener('compositionend', () => { isComposing = false; });
-        inputBox.addEventListener('keydown', (e) => { 
-            if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                if (isComposing) return; 
-                sendMessage();
-            } 
-        });
+
         
         document.getElementById('send-btn').addEventListener('click', sendMessage);
         document.getElementById('new-chat-btn').onclick = handleNewChat;
@@ -1675,37 +1677,73 @@
         });
 
             const slashCommands = [
+                /*
                 { cmd: '/sql', desc: '쿼리 최적화 분석', text: '다음 SQL 쿼리의 실행 계획을 분석하고 성능 최적화 방안을 제시해줘:\n```sql\n\n```' },
                 { cmd: '/log', desc: '에러 로그 원인 파악', text: '다음 에러 로그의 근본 원인을 분석하고 해결책을 알려줘:\n' },
                 { cmd: '/doc', desc: '코드 문서화(Docstring)', text: '다음 코드에 대해 Sphinx 스타일의 Docstring을 작성하고 기능을 요약해줘:\n' },
                 { cmd: '/fix', desc: '버그 수정', text: '이 코드에서 잠재적인 버그를 찾아서 수정해줘:\n' },
                 // ▼▼▼ [추가] 보고서 생성 명령어 ▼▼▼
-                { cmd: '/report', desc: '보고서 초안 작성 (Word)', text: '아래 내용을 삼성웰스토리 표준 보고서 양식(□ 핵심내용, - 상세설명, · 근거)에 맞춰 작성해주고, 수치 데이터는 표로 정리해줘:\n' }
+                { cmd: '/report', desc: '보고서 초안 작성 (Word)', text: '아래 내용을 삼성웰스토리 표준 보고서 양식(□ 핵심내용, - 상세설명, · 근거)에 맞춰 작성해주고, 수치 데이터는 표로 정리해줘:\n' }, */
+                //역할 부여
+                // ▼▼▼ [추가] Custom Mode 전용 페르소나 명령어 ▼▼▼
+                { cmd: '/Food Research Scientist', desc: '식품연구소 담당자', text: '당신은 식품 개발과 안전 기준을 과학적으로 검증하며, 데이터를 기반으로 미래 식문화를 설계하는 연구 전문가.' },
+                { cmd: '/Knox Operations Lead', desc: 'Knox 담당자', text: '당신은 조직의 업무흐름을 자동화·표준화하기 위해 Knox 플랫폼을 안정적으로 운영하고 최적의 사용자 경험을 설계하는 디지털 업무 전문가.' },
+                { cmd: '/Master Data Steward', desc: '기준정보 담당자', text: '당신은 전사 데이터를 일관되고 신뢰성 있게 유지하기 위해 표준 정의·관리·통제를 주도하는 데이터 거버넌스 핵심 담당자.' },
+                { cmd: '/Network Engineer', desc: '네트워크 담당자', text: '당신은 기업 인프라의 끊김 없는 연결성과 보안을 보장하기 위해 네트워크 설계·운영·장애 대응을 책임지는 인프라 안정성 전문가.' }
             ];
 
+            // ▼▼▼ [수정] 키보드 이벤트 로직 통합 (전송 vs 메뉴선택 충돌 해결) ▼▼▼
             const slashMenu = document.getElementById('slash-menu');
             let slashIdx = 0;
 
-            inputBox.addEventListener('keyup', (e) => {
-                const val = inputBox.value;
-                
-                // 메뉴가 떠있을 때 키보드 조작
-                if(slashMenu.style.display === 'flex') {
+            // 1. Keydown: 키를 '누르는 순간' 동작 (네비게이션 및 전송 제어)
+            inputBox.addEventListener('keydown', (e) => {
+                // (A) 슬래시 메뉴가 열려있을 때의 동작
+                if (slashMenu.style.display === 'flex') {
                     const items = document.querySelectorAll('.slash-item');
-                    if(e.key === 'ArrowUp') {
-                        e.preventDefault(); slashIdx = Math.max(0, slashIdx - 1); updateSlashSelect(); return;
+                    
+                    if (e.key === 'ArrowUp') {
+                        e.preventDefault(); // 커서 이동 방지
+                        slashIdx = Math.max(0, slashIdx - 1);
+                        updateSlashSelect();
+                        return;
                     }
-                    if(e.key === 'ArrowDown') {
-                        e.preventDefault(); slashIdx = Math.min(items.length - 1, slashIdx + 1); updateSlashSelect(); return;
+                    if (e.key === 'ArrowDown') {
+                        e.preventDefault(); // 커서 이동 방지
+                        slashIdx = Math.min(items.length - 1, slashIdx + 1);
+                        updateSlashSelect();
+                        return;
                     }
-                    if(e.key === 'Enter') {
-                        e.preventDefault(); applySlash(slashCommands[slashIdx].text); return;
+                    if (e.key === 'Enter') {
+                        e.preventDefault(); // ★ 핵심: 줄바꿈 및 전송 막기
+                        e.stopPropagation(); // 이벤트 전파 중단
+                        applySlash(slashCommands[slashIdx].text); // 선택 적용
+                        return;
                     }
-                    if(e.key === 'Escape') { slashMenu.style.display = 'none'; return; }
+                    if (e.key === 'Escape') {
+                        e.preventDefault();
+                        slashMenu.style.display = 'none';
+                        return;
+                    }
                 }
 
-                // '/' 입력 감지
-                if(val === '/') {
+                // (B) 일반적인 메시지 전송 동작 (메뉴가 닫혀있을 때만)
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    if (isComposing) return; // 한글 조합 중이면 전송 안 함
+                    sendMessage();
+                }
+            });
+
+            // 2. Keyup: 키를 '뗐을 때' 동작 (텍스트 감지 및 메뉴 열기)
+            inputBox.addEventListener('keyup', (e) => {
+                // 네비게이션 키는 keydown에서 처리했으므로 무시
+                if (e.key === 'ArrowUp' || e.key === 'ArrowDown' || e.key === 'Enter' || e.key === 'Escape') return;
+
+                const val = inputBox.value;
+
+                // '/' 입력 감지 -> 메뉴 열기
+                if (val === '/') {
                     slashMenu.innerHTML = slashCommands.map((c, i) => 
                         `<div class="slash-item ${i===0?'selected':''}" onclick="applySlash(slashCommands[${i}].text)">
                             <span class="slash-cmd">${c.cmd}</span><span class="slash-desc">${c.desc}</span>
@@ -1713,10 +1751,16 @@
                     ).join('');
                     slashMenu.style.display = 'flex';
                     slashIdx = 0;
-                } else if(val === '') {
+                } else if (val === '') {
+                    // 내용을 다 지우면 메뉴 닫기
                     slashMenu.style.display = 'none';
                 }
+                // ('/' 뒤에 글자를 더 치면 메뉴 닫을지 여부는 취향에 따라 결정. 현재는 '/' 딱 한 글자일 때만 열림)
+                else if (val.length > 1 && slashMenu.style.display === 'flex') {
+                     slashMenu.style.display = 'none';
+                }
             });
+            // ▲▲▲ [수정 완료] ▲▲▲
 
             function updateSlashSelect() {
                 document.querySelectorAll('.slash-item').forEach((el, i) => {
@@ -1729,6 +1773,35 @@
                 slashMenu.style.display = 'none';
                 inputBox.focus();
             }
+
+            // ... (slashCommands 배열 정의 바로 아래에 추가하세요) ...
+
+            // ▼▼▼ [추가] 모드 변경 시 안내 문구 표시 이벤트 ▼▼▼
+            document.getElementById('mode-select').addEventListener('change', function(e) {
+                const mode = e.target.value;
+                const inputBox = document.getElementById('input-box');
+                
+                if (mode === 'custom') {
+                    // 1. 입력창 안내 문구 변경
+                    inputBox.placeholder = "🎭 페르소나 정의: 첫 메시지로 역할을 부여하세요 (예: / 입력)";
+                    inputBox.focus();
+                    
+                    // 2. 토스트 알림 띄우기 (사용자에게 명확히 인지시킴)
+                    showToast("Custom 모드: 첫 메시지가 이 채팅방의 영구적인 역할이 됩니다.", "🎭");
+                    
+                    // 3. (선택사항) 편의를 위해 자동으로 슬래시 메뉴를 띄워줄 수도 있음
+                    // inputBox.value = '/'; 
+                    // inputBox.dispatchEvent(new Event('keyup')); // 슬래시 메뉴 강제 트리거
+                } else {
+                    // 다른 모드로 돌아오면 문구 원상복구 (바나나 모드 체크)
+                    if (typeof isBananaMode !== 'undefined' && isBananaMode) {
+                        inputBox.placeholder = "🍌 [Banana Mode] 상상하는 이미지를 묘사해보세요...";
+                    } else {
+                        inputBox.placeholder = "Ask anything...";
+                    }
+                }
+            });
+            // ▲▲▲ [추가] 여기까지 ▲▲▲
 
             // ▼▼▼ [복붙] 바나나 모드 기능 스크립트 (script 태그 맨 아래에 붙여넣기) ▼▼▼
 

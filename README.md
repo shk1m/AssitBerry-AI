@@ -1,4 +1,4 @@
-# 🍓 AssistBerry AI (Data Architect Assistant)
+# AssistBerry AI (Data Architect Assistant)
 
 **AssistBerry AI**는 데이터 엔지니어링 및 비즈니스 업무 효율화를 위해 개발된 **사내 전용 올인원 AI 플랫폼**입니다.
 Google Gemini Pro/Flash 및 Imagen 3(또는 DALL-E 3)를 기반으로 하며, 사내 인프라(SCP, Spark, Airflow) 트러블슈팅 지원 및 표준 보고서 작성 자동화 기능을 제공합니다.
@@ -12,14 +12,20 @@ Google Gemini Pro/Flash 및 Imagen 3(또는 DALL-E 3)를 기반으로 하며, �
 ## ✨ 핵심 기능 (Key Features)
 
 ### 1. 🎭 멀티 페르소나 (Multi-Persona Modes)
-- **General Mode**: 일상 대화 및 정보 검색.
-- **Tech Mode**: SCP, Spark, Airflow, Iceberg 등 사내 데이터 플랫폼 기술 지원 (On-call 엔지니어 페르소나).
-- **Biz Mode**: 삼성웰스토리 표준 문서 양식(개조식, 두괄식)에 맞춘 문서 초안 작성.
+General Mode: 일상 대화 및 정보 검색.
+
+Tech Mode: SCP, Spark, Airflow, Iceberg 등 데이터 플랫폼 기술 지원 (On-call 엔지니어 페르소나).
+
+Biz Mode: 표준 문서 양식(개조식, 두괄식)에 맞춘 문서 초안 작성.
+
+Custom Mode [NEW]: 사용자가 채팅방의 첫 메시지로 역할을 부여하면, 해당 세션 내내 AI가 그 역할을 영구적으로 수행합니다. (예: /architect 등 슬래시 커맨드 활용 가능)
 
 ### 2. 🎨 NanoBanana Pro (Image Generation)
-- **AI 이미지 생성**: 채팅창 입력란 상단의 **바나나(🍌) 버튼** 클릭 시 활성화.
-- **고품질 모델**: Google Imagen 3 또는 OpenAI DALL-E 3 연동 지원.
-- **기능**: 생성된 이미지 즉시 미리보기 및 원본 다운로드 지원.
+AI 이미지 생성: 채팅창 상단 바나나(🍌) 버튼 클릭 시 활성화 (입력창 테두리가 금색으로 빛남).
+
+최신 모델 탑재: gemini-3-pro-image-preview 모델을 적용하여 고품질 이미지 생성.
+
+Image-to-Image: 텍스트뿐만 아니라 참조할 이미지(파일)를 첨부하여 "이 스케치 느낌으로 로고 만들어줘"와 같은 고난도 작업 지원.
 
 ### 3. 📝 업무 자동화 (Productivity)
 - **Word(.docx) 레포트 생성**: AI 답변의 **[W]** 버튼 클릭 시, 사내 서식(맑은고딕 14pt, 표 스타일 등)이 적용된 워드 파일 자동 생성.
@@ -39,17 +45,21 @@ Google Gemini Pro/Flash 및 Imagen 3(또는 DALL-E 3)를 기반으로 하며, �
 
 실시간 미리보기: 첨부된 파일은 입력창 상단에 미니 썸네일로 즉시 확인 가능합니다.
 
-Zero-Storage Security: 업로드된 파일은 서버 디스크나 데이터베이스에 절대 저장되지 않습니다. 오직 메모리(RAM)에서 일회성으로 처리된 후 즉시 소멸되어, 사내 보안 규정을 철저히 준수합니다.
+Zero-Storage Security: 업로드된 파일은 서버 디스크나 데이터베이스에 절대 저장되지 않습니다. 오직 메모리(RAM)에서 일회성으로 처리된 후 즉시 소멸되어, 보안을 철저히 준수합니다.
 
-2. 🎨 NanoBanana Pro 섹션 업데이트
-기존 내용을 아래와 같이 수정하여 최신 모델(Gemini 3 Preview) 적용을 명시하세요.
-
-2. 🎨 NanoBanana Pro (Image Generation)
+🎨 NanoBanana Pro (Image Generation)
 AI 이미지 생성: 채팅창 입력란 상단의 바나나(🍌) 버튼 클릭 시 활성화 (입력창 테두리가 금색으로 빛남).
 
 최신 모델 탑재: gemini-3-pro-image-preview 모델을 적용하여 이전보다 훨씬 높은 품질의 이미지를 생성합니다.
 
 Image-to-Image: 텍스트뿐만 아니라 참조할 이미지(파일)를 첨부하여 "이 스케치 느낌으로 로고 만들어줘"와 같은 고난도 작업이 가능합니다.
+
+### 6. ⚡ 스마트 UX (Smart Experience) [NEW]
+Smart Session Renaming: 첫 대화 내용을 AI가 분석하여 채팅방 제목을 자동으로 요약/갱신합니다.
+
+Mobile-Ready: 고해상도 스마트폰 사진(50MB+) 업로드를 완벽 지원하며, 모바일 환경에 최적화된 반응형 UI를 제공합니다.
+
+Interactive UI: 직관적인 토스트 알림(Toast)과 모달 창을 통해 사용자 경험을 강화했습니다.
 
 
 ---
