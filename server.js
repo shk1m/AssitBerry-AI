@@ -433,6 +433,75 @@ app.delete('/api/sessions/clear-all', isAuthenticated, (req, res) => {
 });
 // ▲▲▲ [여기까지] ▲▲▲
 
+// ▼▼▼ [추가] 1개월 경과 세션 관리 API (조회 및 정리) ▼▼▼
+
+// 1. 만료된 세션 조회 (로그인 시 호출용)
+app.get('/api/sessions/expired', isAuthenticated, (req, res) => {
+    // 현재 시간보다 1달(-1 month) 이전인 세션 찾기
+    // 단, 'Knowledge Base'는 시스템용이므로 제외
+    const sql = `
+        SELECT id, title, created_at 
+        FROM sessions 
+        WHERE user_id = ? 
+        AND created_at < datetime('now', '-1 month')
+        AND title != 'Knowledge Base'
+        ORDER BY created_at DESC
+    `;
+    db.all(sql, [req.session.userId], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows); // 만료된 목록 반환 (없으면 빈 배열)
+    });
+});
+
+// 2. 만료된 세션 일괄 삭제 (사용자가 확인 버튼 눌렀을 때 실행)
+app.post('/api/sessions/cleanup', isAuthenticated, (req, res) => {
+    const userId = req.session.userId;
+    const { sessionIds } = req.body; // 클라이언트가 보낸 삭제할 ID 목록
+
+    if (!sessionIds || sessionIds.length === 0) return res.json({ success: true });
+
+    const isAdmin = (req.session.role === 'admin');
+    
+    // (1) 내 세션이 맞는지 검증 (보안)
+    const placeholders = sessionIds.map(() => '?').join(',');
+    const verifySql = `SELECT id FROM sessions WHERE user_id = ? AND id IN (${placeholders})`;
+    
+    db.all(verifySql, [userId, ...sessionIds], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        
+        const validIds = rows.map(r => r.id);
+        if (validIds.length === 0) return res.json({ success: true }); // 지울 게 없음
+
+        const validPh = validIds.map(() => '?').join(',');
+
+        // (2) FTS(검색 인덱스) 처리 전략
+        // ★ 관리자(Admin): FTS 데이터는 남겨둠 (RAG 지식 보존) -> messages 테이블만 삭제하여 용량 확보
+        // ★ 일반 유저: FTS 데이터도 삭제 (개인정보 보호)
+        const ftsTask = new Promise((resolve) => {
+            if (isAdmin) {
+                resolve(); // 관리자는 FTS 삭제 건너뜀
+            } else {
+                // 일반 유저는 검색 인덱스에서도 깔끔하게 삭제
+                db.run(`DELETE FROM messages_fts WHERE rowid IN (SELECT id FROM messages WHERE session_id IN (${validPh}))`, validIds, () => resolve());
+            }
+        });
+
+        ftsTask.then(() => {
+            // (3) messages (대화 내용) 삭제 -> DB 용량 확보의 핵심
+            db.run(`DELETE FROM messages WHERE session_id IN (${validPh})`, validIds, (err) => {
+                if (err) console.error(err);
+                
+                // (4) sessions (방 목록) 삭제
+                db.run(`DELETE FROM sessions WHERE id IN (${validPh})`, validIds, (err) => {
+                    if (err) return res.status(500).json({ error: err.message });
+                    res.json({ success: true, count: validIds.length });
+                });
+            });
+        });
+    });
+});
+// ▲▲▲ [추가] 여기까지 ▲▲▲
+
 app.delete('/api/sessions/:id', isAuthenticated, (req, res) => {
     const id = req.params.id;
     db.get("SELECT user_id FROM sessions WHERE id = ?", [id], (err, row) => {
@@ -448,7 +517,7 @@ app.get('/api/sessions/:id/messages', isAuthenticated, (req, res) => {
 // 🔥 Main Chat Logic (Modified for Mode Selection)
 // ▼▼▼ [교체] 파일 분석 지원 채팅 라우트 ▼▼▼
 app.post('/api/chat', isAuthenticated, upload.array('files'), async (req, res) => {
-    // 1. FormData 파싱 (multer가 처리 후 req.body/req.files에 담음)
+    // 1. FormData 파싱
     const { sessionId, message, modelName, modeName } = req.body;
     const files = req.files || []; 
     const userId = req.session.userId;
@@ -467,90 +536,77 @@ app.post('/api/chat', isAuthenticated, upload.array('files'), async (req, res) =
     else if (modeName === 'business') baseInstruction = SYSTEM_INSTRUCTION_BUSINESS;
 
     try {
-        // 2. DB 저장 (파일 내용은 저장하지 않음)
-        // 텍스트 없이 파일만 보냈을 경우 DB에는 "(파일 첨부)"라고 기록
-        let dbContent = message;
-        if ((!message || message.trim() === "") && files.length > 0) {
-            dbContent = "(파일 첨부)";
+        // ★ [핵심 1] 한글 파일명 깨짐 복구 (Latin1 -> UTF8)
+        files.forEach(file => {
+            file.originalname = Buffer.from(file.originalname, 'latin1').toString('utf8');
+        });
+
+        // 2. DB 저장 (중복 방지를 위해 로직 통합)
+        let dbContent = message || ""; 
+        
+        if (files.length > 0) {
+            // 파일명 꼬리표 추가
+            const fileTags = files.map(f => `[파일 첨부: ${f.originalname}]`).join(', ');
+            if (dbContent.trim() === "") {
+                dbContent = fileTags; 
+            } else {
+                dbContent += `\n${fileTags}`;
+            }
         }
         
+        // ★ [핵심 2] 여기서 딱 한 번만 저장합니다! (기존 중복 코드 삭제됨)
         await saveMessage(sessionId, 'user', dbContent, isAdminUser);
 
         // 3. 이전 대화 기록 불러오기
         const historyRows = await new Promise((resolve) => db.all("SELECT role, content FROM messages WHERE session_id = ? ORDER BY created_at ASC", [sessionId], (err, r) => resolve(r||[])));
         
-        // ▼▼▼ [추가] Custom 모드: 첫 번째 메시지를 시스템 페르소나로 '영구 고정' ▼▼▼
+        // Custom 모드 페르소나 고정 로직
         if (modeName === 'custom') {
-            let personaDefinition = message; // 기본값: 지금 막 보낸 메시지 (첫 턴)
-
-            // 만약 대화 기록이 이미 존재한다면? -> 기록 중 '가장 첫 번째 유저 메시지'를 찾아냄
+            let personaDefinition = message; 
             if (historyRows.length > 0) {
                 const firstUserMsg = historyRows.find(row => row.role === 'user');
-                // 첫 메시지가 있으면 그걸 페르소나로 덮어씌움 (지금 사용자가 딴소리해도 무시됨)
-                if (firstUserMsg) {
-                    personaDefinition = firstUserMsg.content;
-                }
+                if (firstUserMsg) personaDefinition = firstUserMsg.content;
             }
-
-            // 시스템 지시사항(Instruction)을 강제로 교체
             baseInstruction = `
             🚨 [CRITICAL SYSTEM OVERRIDE]
             Forget previous instructions about being 'AssistBerry'.
             Your ONLY role in this session is defined below. 
-            You must act exactly according to this definition throughout the entire conversation.
-            
-            [PERMANENT ROLE DEFINITION]:
-            ${personaDefinition}
-            
-            If the user asks who you are, answer ONLY based on the role above.
-            Do NOT mention that you are an AI unless the role definition says so.
+            [PERMANENT ROLE DEFINITION]: ${personaDefinition}
+            Answer ONLY based on this role.
             `;
         }
-        // ▲▲▲ [추가] 여기까지 ▲▲▲
+
         const sessionData = await new Promise((resolve) => db.get("SELECT summary, title FROM sessions WHERE id = ?", [sessionId], (err, r) => resolve(r)));
         let userMemory = await getUserMemory(userId);
         let contents = [];
-        let currentSummary = sessionData?.summary || "";
 
-        // ... (기존 요약/히스토리 처리 로직은 그대로 사용) ...
-        // 간소화를 위해 핵심인 컨텍스트 조립 부분만 보여드립니다.
-        // 기존 코드의 historyRows 처리 부분을 그대로 두셔도 무방합니다.
-        
         // 히스토리 주입
         historyRows.forEach(msg => {
-             // DB에 저장된 예전 이미지 로그 필터링
              let contentText = msg.content;
+             // Base64 이미지 로그 필터링
              if (contentText.includes('data:image') && contentText.includes('base64')) {
                  contentText = "[Image/File attached by user]";
              }
              contents.push({ role: msg.role, parts: [{ text: contentText }] });
         });
 
-        // 4. [핵심] 현재 턴 메시지 구성 (멀티모달)
+        // 4. 현재 턴 메시지 구성
         const currentParts = [];
+        if (message && message.trim() !== "") currentParts.push({ text: message });
         
-        // (A) 텍스트 추가
-        if (message && message.trim() !== "") {
-            currentParts.push({ text: message });
-        }
-
-        // (B) 파일 추가 (Base64 변환)
         if (files.length > 0) {
             files.forEach(file => {
                 currentParts.push({
                     inlineData: {
                         mimeType: file.mimetype,
-                        data: file.buffer.toString('base64') // 메모리 버퍼 -> Base64
+                        data: file.buffer.toString('base64')
                     }
                 });
             });
         }
         
         if (currentParts.length === 0) return res.status(400).json({ error: "내용을 입력하세요." });
-
         contents.push({ role: 'user', parts: currentParts });
-
-        // ... (위쪽 코드는 유지) ...
 
         // 5. Gemini 호출
         const now = new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' });
@@ -560,102 +616,53 @@ app.post('/api/chat', isAuthenticated, upload.array('files'), async (req, res) =
             model: targetEngine,
             config: { 
                 systemInstruction: finalInstruction,
-                // ▼▼▼ [긴급 추가] 구글 검색(Grounding) 기능 활성화 ▼▼▼
                 tools: [{ googleSearch: {} }, { codeExecution: {} }]
-                // ▲▲▲ [추가] 이 한 줄이 있어야 실시간 정보를 가져옵니다! ▲▲▲
             },
             contents: contents 
         });
 
-        // ▼▼▼ [수정] 텍스트뿐만 아니라 '실행된 코드'도 함께 가져오기 ▼▼▼
+        // 응답 처리 (코드 실행 결과 포함)
         let responseText = "";
-        
         const candidate = response.candidates && response.candidates[0];
         if (candidate && candidate.content && candidate.content.parts) {
             for (const part of candidate.content.parts) {
-                // 1. 일반 텍스트 답변
-                if (part.text) {
-                    responseText += part.text;
-                } 
-                // 2. [핵심] Gemini가 백그라운드에서 실행한 파이썬 코드
-                else if (part.executableCode) {
-                    responseText += `\n\n**[Code Executed]**\n\`\`\`python\n${part.executableCode.code}\n\`\`\`\n`;
-                }
-                // 3. (선택사항) 코드 실행 결과값
-                else if (part.codeExecutionResult) {
-                    responseText += `\n> **Output:** \`${part.codeExecutionResult.output?.trim()}\`\n\n`;
-                }
+                if (part.text) responseText += part.text;
+                else if (part.executableCode) responseText += `\n\n**[Code Executed]**\n\`\`\`python\n${part.executableCode.code}\n\`\`\`\n`;
+                else if (part.codeExecutionResult) responseText += `\n> **Output:** \`${part.codeExecutionResult.output?.trim()}\`\n\n`;
             }
         } else if (typeof response.text === 'function') {
-            // 구조가 다를 경우를 대비한 백업
             responseText = response.text();
         }
 
-        if (!responseText) {
-            responseText = "⚠️ 응답을 불러오지 못했습니다.";
-        }
-        // ▲▲▲ [수정 완료] ▲▲▲
+        if (!responseText) responseText = "⚠️ 응답을 불러오지 못했습니다.";
 
         await saveMessage(sessionId, 'model', responseText, isAdminUser);
         updateUserMemory(userId, dbContent, responseText);
 
-        // ... (server.js 하단 제목 생성 로직 내부)
-
-        // ... (server.js 하단 제목 생성 로직)
-
-        if (historyRows.length <= 1) {
+        // 제목 자동 생성 로직 (New Analysis일 때만)
+        if (sessionData && sessionData.title === 'New Analysis') {
             try {
-                // 1. 입력 텍스트가 너무 길면 앞부분 500자만 잘라서 요약 요청
                 let summaryInput = message || "";
-                if (summaryInput.length > 500) {
-                    summaryInput = summaryInput.substring(0, 500);
-                }
+                if (summaryInput.length > 500) summaryInput = summaryInput.substring(0, 500);
 
                 const titleModel = ai.getGenerativeModel({ model: 'gemini-2.5-flash' });
-                const titlePrompt = `
-                Summarize the following text into a concise title for a chat history list.
-                Language: Korean.
-                Max Length: 15 characters.
-                No quotes, no markdown.
-                
-                Text: ${summaryInput}
-                `;
-                
+                const titlePrompt = `Summarize into a concise title (Korean, Max 15 chars). No quotes.\nText: ${summaryInput}`;
                 const titleRes = await titleModel.generateContent(titlePrompt);
-                let newTitle = titleRes.response.text().trim();
-                
-                // 2. 특수문자 제거
-                newTitle = newTitle.replace(/["'*]/g, "");
-                
-                // 3. [핵심 수정] 만약 AI가 빈칸을 줬거나 에러가 났다면? -> 강제 설정
-                // ▼▼▼ [추가] 제목이 비어있으면 강제로 채워넣는 로직 (이게 없어서 안 떴음) ▼▼▼
-                if (!newTitle || newTitle.length === 0) {
-                     if (files.length > 0 && summaryInput.trim() === "") {
-                         newTitle = "이미지 분석";
-                     } else {
-                         // 메시지 앞부분 15글자로 강제 설정
-                         newTitle = summaryInput.substring(0, 15) + "...";
-                     }
-                }
-                // ▲▲▲ [추가] 여기까지 ▲▲▲
+                let newTitle = titleRes.response.text().trim().replace(/["'*]/g, "");
 
-                // 길이 제한 (20자)
+                if (!newTitle) {
+                     if (files.length > 0 && summaryInput.trim() === "") newTitle = "이미지 분석";
+                     else newTitle = summaryInput.substring(0, 15) + "...";
+                }
                 if (newTitle.length > 20) newTitle = newTitle.substring(0, 20);
 
-                // 4. DB 업데이트 (동기 처리 보장)
                 await new Promise((resolve) => {
-                    db.run("UPDATE sessions SET title = ? WHERE id = ?", [newTitle, sessionId], (err) => {
-                        resolve();
-                    });
+                    db.run("UPDATE sessions SET title = ? WHERE id = ?", [newTitle, sessionId], resolve);
                 });
-                
             } catch (e) {
-                // 완전 실패 시 Fallback
-                let fallback = message.trim();
+                let fallback = message ? message.trim() : "New Chat";
                 if (fallback.length > 10) fallback = fallback.substring(0, 10) + "...";
                 if (files.length > 0 && fallback === "") fallback = "첨부파일 분석";
-                if (fallback === "") fallback = "New Chat"; // 최후의 보루
-                
                 db.run("UPDATE sessions SET title = ? WHERE id = ?", [fallback, sessionId]);
             }
         }
@@ -667,36 +674,39 @@ app.post('/api/chat', isAuthenticated, upload.array('files'), async (req, res) =
         res.status(500).json({ error: error.message });
     }
 });
-// ▲▲▲ [교체 완료] ▲▲▲
+// ▲▲▲ [수정 완료] 1. 채팅 라우트 끝 ▲▲▲
 
 // ▼▼▼ [수정] 나노바나나(이미지 생성) 라우트 - 파일 업로드 지원 추가 ▼▼▼
+// ▼▼▼ [수정] 2. 나노바나나 라우트 (한글 깨짐 해결 + 중복 저장 방지) ▼▼▼
 app.post('/api/image', isAuthenticated, upload.array('files'), async (req, res) => {
-    // 1. 권한 체크
     if (req.session.role !== 'admin' && !req.session.allowImage) {
         return res.status(403).json({ error: "Access Denied: Banana Mode Locked" });
     }
     
-    // FormData로 오기 때문에 req.body에서 텍스트 추출
     const { prompt, sessionId } = req.body;
-    const files = req.files || []; // 업로드된 파일들
+    const files = req.files || []; 
     
     try {
-        // 2. 유저 메시지 저장 (파일이 있으면 '파일+텍스트'로 간주)
+        // ★ [핵심 1] 한글 파일명 깨짐 복구
+        files.forEach(file => {
+            file.originalname = Buffer.from(file.originalname, 'latin1').toString('utf8');
+        });
+
+        // 2. 유저 메시지 저장
         let saveContent = prompt;
-        if ((!prompt || prompt.trim() === "") && files.length > 0) {
-            saveContent = "(참조 이미지 첨부)";
+        // 파일이 있으면 텍스트 뒤에 파일명 표시
+        if (files.length > 0) {
+             const fileTags = files.map(f => `[참조 파일: ${f.originalname}]`).join(', ');
+             if (!saveContent || saveContent.trim() === "") saveContent = fileTags;
+             else saveContent += `\n${fileTags}`;
         }
+        
+        // ★ [핵심 2] 여기서 한 번만 저장
         await saveMessage(sessionId, 'user', saveContent, req.session.role === 'admin');
 
-        // 3. 모델에 보낼 콘텐츠 구성 (멀티모달)
+        // 3. 모델 요청 구성
         const requestParts = [];
-
-        // (A) 텍스트 프롬프트
-        if (prompt && prompt.trim() !== "") {
-            requestParts.push({ text: prompt });
-        }
-
-        // (B) 첨부 파일 (이미지) -> Base64 변환
+        if (prompt && prompt.trim() !== "") requestParts.push({ text: prompt });
         if (files.length > 0) {
             files.forEach(file => {
                 requestParts.push({
@@ -708,24 +718,15 @@ app.post('/api/image', isAuthenticated, upload.array('files'), async (req, res) 
             });
         }
 
-        // 4. Gemini 호출 (이미지 생성 모드)
-        // 사용자가 지정한 모델명 사용 (gemini-3-pro-image-preview)
+        // 4. Gemini 호출
         const response = await ai.models.generateContent({
             model: 'gemini-3-pro-image-preview', 
-            contents: [{ 
-                role: 'user', 
-                parts: requestParts 
-            }],
-            config: {
-                responseModalities: ["IMAGE"], // 이미지로 응답 요청
-            }
+            contents: [{ role: 'user', parts: requestParts }],
+            config: { responseModalities: ["IMAGE"] }
         });
 
-        // 5. 응답 데이터에서 이미지 추출
         const candidates = response.candidates;
-        if (!candidates || !candidates[0] || !candidates[0].content || !candidates[0].content.parts) {
-            throw new Error("API 응답에 내용이 없습니다.");
-        }
+        if (!candidates || !candidates[0]?.content?.parts) throw new Error("API 응답 없음");
 
         const parts = candidates[0].content.parts;
         let base64Image = null;
@@ -741,21 +742,23 @@ app.post('/api/image', isAuthenticated, upload.array('files'), async (req, res) 
 
         if (!base64Image) {
             const textPart = parts.find(p => p.text);
-            const errorMsg = textPart ? textPart.text : "이미지 생성 실패 (정책 위반 또는 모델 오류)";
-            throw new Error(errorMsg);
+            throw new Error(textPart ? textPart.text : "이미지 생성 실패");
         }
         
-        const imageMarkdown = `![Generated Image](data:${mimeType};base64,${base64Image})\n\n**🍌 Generated via Banana Mode (Gemini 3 Preview)**`;
+        // 5. DB 저장용 vs 클라이언트 전송용 분리
+        const responseForClient = `![Generated Image](data:${mimeType};base64,${base64Image})\n\n**🍌 Generated via Banana Mode**`;
+        const contentForDB = `[🍌 이미지 생성 완료] (DB 용량 절약을 위해 이미지는 저장되지 않았습니다.)`;
 
-        await saveMessage(sessionId, 'model', imageMarkdown, req.session.role === 'admin');
-        res.json({ response: imageMarkdown });
+        await saveMessage(sessionId, 'model', contentForDB, req.session.role === 'admin');
+        
+        res.json({ response: responseForClient }); 
 
     } catch (e) {
         console.error("Image Gen Error:", e);
         res.status(500).json({ error: "이미지 생성 실패: " + (e.message || "Unknown Error") });
     }
 });
-// ▲▲▲ [수정 완료] ▲▲▲
+// ▲▲▲ [수정 완료] 2. 나노바나나 라우트 끝 ▲▲▲
 
 
 app.listen(PORT, () => { console.log(`Server started on http://localhost:${PORT}`); });

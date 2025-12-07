@@ -852,6 +852,39 @@
         </div>
     </div>
 
+<div id="cleanup-modal-overlay" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 9999; display: none; justify-content: center; align-items: center; backdrop-filter: blur(8px);">
+        <div class="custom-modal-box" style="max-width: 450px; text-align: center;">
+            <div style="font-size:3.5rem; margin-bottom:10px;">🧹</div>
+            <h2 style="color:white; margin:0 0 10px;">저장공간 최적화 알림</h2>
+            <p style="color:var(--text-secondary); font-size:0.95rem; line-height:1.5;">
+                서버 성능 유지를 위해 <strong>1개월이 지난 대화</strong>를 정리해주세요.<br>
+                <span style="font-size:0.85rem; opacity:0.7;">(오래된 데이터는 DB 속도 저하의 원인이 됩니다.)</span>
+            </p>
+            
+            <div style="background:rgba(0,0,0,0.3); border:1px solid var(--border-subtle); border-radius:12px; padding:15px; margin:20px 0; text-align:left;">
+                <div style="display:flex; justify-content:space-between; margin-bottom:10px; font-size:0.85rem; color:var(--text-dim); font-weight:bold;">
+                    <span>삭제 대상 (1개월 경과)</span>
+                    <span id="cleanup-total-count" style="color:var(--error);">0건</span>
+                </div>
+                <ul id="cleanup-list" style="margin:0; padding:0; list-style:none; max-height:150px; overflow-y:auto; font-size:0.9rem;">
+                </ul>
+            </div>
+
+            <p id="cleanup-admin-note" style="display:none; font-size:0.8rem; color:#69db7c; margin-bottom:20px; background:rgba(81, 207, 102, 0.1); padding:8px; border-radius:6px;">
+                ✅ 관리자(Admin) 데이터는 검색 엔진에 자동 백업됩니다.
+            </p>
+
+            <div class="modal-btns" style="flex-direction:column; gap:10px;">
+                <button onclick="performCleanup()" class="modal-btn btn-confirm" style="width:100%; padding:14px; font-size:1rem;">
+                    네, 모두 정리합니다 (Clean All)
+                </button>
+                <button onclick="closeCleanupModal()" class="modal-btn" style="width:100%; background:transparent; color:var(--text-dim); border:1px solid var(--border-subtle);">
+                    나중에 하기 (취소)
+                </button>
+            </div>
+        </div>
+    </div>
+
     <div id="custom-modal-overlay">
         <div class="custom-modal-box">
             <span class="modal-icon" id="modal-icon">⚠️</span>
@@ -998,8 +1031,9 @@
             document.getElementById('user-display-name').innerText = `Welcome, ${currentUser.username}`;
             
             // 1. Admin 패널 버튼 표시
-            if(currentUser.role === 'admin') {
-                document.getElementById('admin-panel-btn').style.display = 'block';
+            // 관리자 여부에 따라 안내 문구 표시/숨김
+            if (currentUser.role === 'admin') {
+                document.getElementById('cleanup-admin-note').style.display = 'block';
             }
             
             // 2. 🔥 [핵심 수정] 바나나 버튼 표시 로직
@@ -1025,6 +1059,8 @@
                     const first = document.querySelector('.session-item');
                     if(first) loadMessages(first.getAttribute('data-id'));
                 }
+                // ▼▼▼ [추가] 로그인 1.5초 뒤에 정리 팝업 체크 ▼▼▼
+                setTimeout(checkExpiredSessions, 1500);
             });
         }
         // ▲▲▲ [교체] 여기까지 ▲▲▲
@@ -2102,4 +2138,80 @@
                 newBtn.addEventListener('click', window.sendMessage);
             })();
             // ▲▲▲ [긴급 수정] 여기까지 ▲▲▲
+
+            // ▼▼▼ [추가] 오래된 세션 정리 로직 ▼▼▼
+        let expiredIds = [];
+
+        async function checkExpiredSessions() {
+            try {
+                // 서버에 "1달 지난 거 있어?" 물어보기
+                const res = await fetch('/api/sessions/expired');
+                const list = await res.json();
+                
+                if (list.length > 0) {
+                    expiredIds = list.map(s => s.id);
+                    
+                    // 목록 그리기
+                    const ul = document.getElementById('cleanup-list');
+                    ul.innerHTML = '';
+                    list.forEach(s => {
+                        const d = new Date(s.created_at).toLocaleDateString();
+                        const li = document.createElement('li');
+                        li.style.cssText = "display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid rgba(255,255,255,0.05); color:var(--text-primary);";
+                        li.innerHTML = `<span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; width:70%;">${s.title}</span><span style="color:var(--text-dim);">${d}</span>`;
+                        ul.appendChild(li);
+                    });
+                    
+                    document.getElementById('cleanup-total-count').innerText = `${list.length}건`;
+                    
+                    // 팝업 띄우기 (데이터가 있을 때만 뜸)
+                    document.getElementById('cleanup-modal-overlay').style.display = 'flex';
+                }
+            } catch (e) { console.error("Cleanup Check Failed", e); }
+        }
+
+        // 취소 버튼: 그냥 닫기만 함 (DB 삭제 안 하므로 다음 로그인 때 또 뜸)
+        function closeCleanupModal() {
+            document.getElementById('cleanup-modal-overlay').style.display = 'none';
+        }
+
+        // 확인 버튼: 실제 삭제 요청 보냄
+        async function performCleanup() {
+            if (expiredIds.length === 0) return;
+            
+            const btn = document.querySelector('#cleanup-modal-overlay .btn-confirm');
+            const originalText = btn.innerText;
+            btn.innerText = "정리 중... ⏳";
+            btn.disabled = true;
+
+            try {
+                const res = await fetch('/api/sessions/cleanup', { 
+                    method: 'POST', 
+                    headers: {'Content-Type':'application/json'},
+                    body: JSON.stringify({ sessionIds: expiredIds }) 
+                });
+                
+                const data = await res.json();
+                
+                if (data.success) {
+                    showToast(`${data.count}개의 오래된 대화가 정리되었습니다.`, "✨");
+                    closeCleanupModal();
+                    
+                    // 현재 보고 있던 방이 지워졌을 수도 있으니 화면 갱신
+                    if (expiredIds.includes(Number(currentSessionId))) {
+                        await createNewSession();
+                    } else {
+                        await loadSessions();
+                    }
+                } else {
+                    showToast("정리 실패: " + data.error, "❌");
+                }
+            } catch (e) {
+                showToast("오류 발생", "❌");
+            } finally {
+                btn.innerText = originalText;
+                btn.disabled = false;
+            }
+        }
+        // ▲▲▲ [추가] 여기까지 ▲▲▲
     </script>
