@@ -1,7 +1,7 @@
 # AssistBerry AI (Data Architect Assistant)
 
-**AssistBerry AI**는 데이터 엔지니어링 및 비즈니스 업무 효율화를 위해 개발된 **사내 전용 올인원 AI 플랫폼**입니다.
-Google Gemini Pro/Flash 및 Nano banana를 기반으로 하며, 사내 인프라(SCP, Spark, Airflow) 트러블슈팅 지원 및 표준 보고서 작성 자동화 기능을 제공합니다.
+**AssistBerry AI**는 데이터 엔지니어링 및 비즈니스 효율화를 위해 개발된 **올인원 AI 플랫폼**입니다.
+Google Gemini Pro/Flash 및 Nano banana를 기반으로 하며, 사내 인프라(SCP, Spark, Airflow) 트러블슈팅 지원 문서 작성 자동화 기능을 제공합니다.
 
 ![License](https://img.shields.io/badge/License-Private-red)
 ![Node](https://img.shields.io/badge/Node.js-%3E%3D18-green)
@@ -9,9 +9,9 @@ Google Gemini Pro/Flash 및 Nano banana를 기반으로 하며, 사내 인프라
 
 ---
 
-## ✨ 핵심 기능 (Key Features)
+## 핵심 기능 (Key Features)
 
-### 1. 🎭 멀티 페르소나 (Multi-Persona Modes)
+### 1. 멀티 페르소나 (Multi-Persona Modes)
 General Mode: 일상 대화 및 정보 검색.
 
 Tech Mode: SCP, Spark, Airflow, Iceberg 등 데이터 플랫폼 기술 지원 (On-call 엔지니어 페르소나).
@@ -20,43 +20,37 @@ Biz Mode: 표준 문서 양식(개조식, 두괄식)에 맞춘 문서 초안 작
 
 Custom Mode [NEW]: 사용자가 채팅방의 첫 메시지로 역할을 부여하면, 해당 세션 내내 AI가 그 역할을 영구적으로 수행합니다. (예: /architect 등 슬래시 커맨드 활용 가능)
 
-### 2. 🎨 NanoBanana Pro (Image Generation)
+### 2. NanoBanana Pro (Image Generation)
 AI 이미지 생성: 채팅창 상단 바나나(🍌) 버튼 클릭 시 활성화 (입력창 테두리가 금색으로 빛남).
 
 최신 모델 탑재: gemini-3-pro-image-preview 모델을 적용하여 고품질 이미지 생성.
 
 Image-to-Image: 텍스트뿐만 아니라 참조할 이미지(파일)를 첨부하여 "이 스케치 느낌으로 로고 만들어줘"와 같은 고난도 작업 지원.
 
-### 3. 📝 업무 자동화 (Productivity)
-- **Word(.docx) 레포트 생성**: AI 답변의 **[W]** 버튼 클릭 시, 사내 서식(맑은고딕 14pt, 표 스타일 등)이 적용된 워드 파일 자동 생성.
-- **Slash Commands (`/`)**: 
-  - `/sql`: 쿼리 튜닝 및 실행 계획 분석.
-  - `/log`: 에러 로그 원인 및 해결책 분석.
-  - `/report`: 주간 업무 보고서용 초안 작성.
-  - `/fix`: 코드 버그 수정 및 리팩토링.
-- **Streaming Response**: 타자 치듯 끊김 없는 실시간 답변 출력.
+### 3. 파일 자동 생성 (Productivity)
+- **Word(.docx) 파일 생성**: AI 답변의 **[W]** 버튼 클릭 시, 맑은고딕 14pt, 표 스타일 등이 적용된 워드 파일 자동 생성.
 
-### 4. 🔐 관리 및 보안 (Admin & Security)
+### 4. 관리 및 보안 (Admin & Security)
 - **Admin Dashboard**: 서버 리소스(CPU, RAM, Disk) 모니터링, 사용자 승인/관리, 시스템 종료.
-- **RAG (지식 주입)**: 관리자 패널을 통해 사내 기술 문서(Knowledge Base) 업로드 및 검색 증강 생성 적용.
+- **RAG (지식 주입)**: 관리자 패널을 통해 수동으로 검색 증강 생성 적용.
 
-### 5. 📎 멀티모달 분석 (Multi-modal Support) [NEW]
+### 5. 멀티모달 분석 (Multi-modal Support) [NEW]
 파일 첨부 지원: 입력창 좌측의 클립(📎) 버튼을 통해 이미지 및 파일을 첨부하여 AI에게 분석을 요청할 수 있습니다.
 
 실시간 미리보기: 첨부된 파일은 입력창 상단에 미니 썸네일로 즉시 확인 가능합니다.
 
 Zero-Storage Security: 업로드된 파일은 서버 디스크나 데이터베이스에 절대 저장되지 않습니다. 오직 메모리(RAM)에서 일회성으로 처리된 후 즉시 소멸되어, 보안을 철저히 준수합니다.
 
-🎨 NanoBanana Pro (Image Generation)
+NanoBanana Pro (Image Generation)
 AI 이미지 생성: 채팅창 입력란 상단의 바나나(🍌) 버튼 클릭 시 활성화 (입력창 테두리가 금색으로 빛남).
 
 최신 모델 탑재: gemini-3-pro-image-preview 모델을 적용하여 이전보다 훨씬 높은 품질의 이미지를 생성합니다.
 
 Image-to-Image: 텍스트뿐만 아니라 참조할 이미지(파일)를 첨부하여 "이 스케치 느낌으로 로고 만들어줘"와 같은 고난도 작업이 가능합니다.
 
-Zero-Storage Security: 업로드된 파일은 **서버 디스크나 DB에 절대 저장되지 않습니다.** 오직 메모리(RAM)에서 일회성으로 처리된 후 즉시 소멸되어 사내 보안 규정을 준수합니다.
+Zero-Storage Security: 업로드된 파일은 **서버 디스크나 DB에 절대 저장되지 않습니다.** 오직 메모리(RAM)에서 일회성으로 처리된 후 즉시 소멸되어 보안 규정을 준수합니다.
 
-### 6. ⚡ 스마트 UX (Smart Experience) [NEW]
+### 6. 스마트 UX (Smart Experience) [NEW]
 Smart Session Renaming: 첫 대화 내용을 AI가 분석하여 채팅방 제목을 자동으로 요약/갱신합니다.
 
 Mobile-Ready: 고해상도 스마트폰 사진(50MB+) 업로드를 완벽 지원하며, 모바일 환경에 최적화된 반응형 UI를 제공합니다.
@@ -68,19 +62,19 @@ Auto-Cleanup: 1개월 이상 지난 오래된 대화 내역을 감지하여, 팝
 
 ---
 
-## 🛠 기술 스택 (Tech Stack)
+## 기술 스택 (Tech Stack)
 
 | 영역 | 기술 스택 |
 |---|---|
 | **Frontend** | HTML5, CSS3 (Glassmorphism), Vanilla JS |
 | **Backend** | Node.js, Express.js Multer (In-Memory File Processing)|
 | **Database** | SQLite3 (FTS5 검색 엔진 포함) |
-| **AI Models** | Gemini 2.5 Flash, Gemini 3 Pro, gemini-2.5-flash-image |
+| **AI Models** | Gemini 2.5 Flash, Gemini-3-Pro-preview, gemini-2.5-flash-image-preview |
 | **Infra** | Nginx (Reverse Proxy), PM2 (Process Manager), Let's Encrypt (SSL) |
 
 ---
 
-## 🚀 로컬 설치 및 실행 (Local Installation)
+## 로컬 설치 및 실행 (Local Installation)
 
 ### 1. 프로젝트 설정
 ```bash
@@ -108,7 +102,7 @@ Bash
 
 node server.js
 # 접속 주소: http://localhost:3000 (또는 설정된 포트)
-🌐 서버 배포 가이드 (Deployment Guide)
+서버 배포 가이드 (Deployment Guide)
 운영 환경(Ubuntu/Linux/Raspberry Pi)에서 **Nginx(리버스 프록시) + SSL(HTTPS) + PM2(무중단)**를 구성하는 표준 절차입니다.
 
 1. Node.js 포트 변경 및 PM2 실행
@@ -181,7 +175,7 @@ sudo apt install certbot python3-certbot-nginx -y
 sudo certbot --nginx -d chat.yourcompany.com
 설치 중 Redirect 옵션 질문 시 2 (Redirect) 선택 권장.
 
-📖 사용 가이드 (User Manual)
+사용 가이드 (User Manual)
 🍌 NanoBanana (이미지 생성)
 채팅 입력창 상단의 **바나나 아이콘(🍌)**을 클릭합니다.
 
@@ -189,15 +183,15 @@ sudo certbot --nginx -d chat.yourcompany.com
 
 생성된 이미지는 클릭하여 크게 보거나 다운로드할 수 있습니다.
 
-📄 보고서 모드 (Biz Mode)
+비즈니스 모드 (Biz Mode)
 입력창 상단의 Mode Select를 Business로 변경합니다.
 
 /report 명령어를 입력하거나 보고서 주제를 입력합니다.
 
 답변 생성이 완료되면 말풍선 우측 상단의 [W] 아이콘을 클릭하여 .docx 파일로 다운로드합니다.
 
-🛡 관리자 모드 (Admin)
-shoo.kim (슈퍼 관리자) 계정으로 로그인합니다.
+관리자 모드 (Admin)
+admin (슈퍼 관리자) 계정으로 로그인합니다.
 
 사이드바 하단의 Admin Dashboard 버튼을 클릭합니다.
 
@@ -211,7 +205,7 @@ RAG 지식 데이터(Knowledge Base) 주입 및 관리
 
 서버 긴급 종료
 
-📎 파일 분석 (Multi-modal Analysis) [NEW]
+파일 분석 (Multi-modal Analysis) [NEW]
 채팅 입력창 왼쪽의 **클립 아이콘(📎)**을 클릭합니다.
 
 분석할 이미지(아키텍처 구성도, 에러 로그 스크린샷 등)나 파일을 선택합니다.
