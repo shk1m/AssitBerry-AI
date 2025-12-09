@@ -1,7 +1,7 @@
 # AssistBerry AI (Data Architect Assistant)
 
 **AssistBerry AI**는 데이터 엔지니어링 및 비즈니스 업무 효율화를 위해 개발된 **사내 전용 올인원 AI 플랫폼**입니다.
-Google Gemini Pro/Flash 및 Imagen 3(또는 DALL-E 3)를 기반으로 하며, 사내 인프라(SCP, Spark, Airflow) 트러블슈팅 지원 및 표준 보고서 작성 자동화 기능을 제공합니다.
+Google Gemini Pro/Flash 및 Nano banana를 기반으로 하며, 사내 인프라(SCP, Spark, Airflow) 트러블슈팅 지원 및 표준 보고서 작성 자동화 기능을 제공합니다.
 
 ![License](https://img.shields.io/badge/License-Private-red)
 ![Node](https://img.shields.io/badge/Node.js-%3E%3D18-green)
@@ -54,7 +54,7 @@ AI 이미지 생성: 채팅창 입력란 상단의 바나나(🍌) 버튼 클릭
 
 Image-to-Image: 텍스트뿐만 아니라 참조할 이미지(파일)를 첨부하여 "이 스케치 느낌으로 로고 만들어줘"와 같은 고난도 작업이 가능합니다.
 
-Zero-Storage Security**: 업로드된 파일은 **서버 디스크나 DB에 절대 저장되지 않습니다.** 오직 메모리(RAM)에서 일회성으로 처리된 후 즉시 소멸되어 사내 보안 규정을 준수합니다.
+Zero-Storage Security: 업로드된 파일은 **서버 디스크나 DB에 절대 저장되지 않습니다.** 오직 메모리(RAM)에서 일회성으로 처리된 후 즉시 소멸되어 사내 보안 규정을 준수합니다.
 
 ### 6. ⚡ 스마트 UX (Smart Experience) [NEW]
 Smart Session Renaming: 첫 대화 내용을 AI가 분석하여 채팅방 제목을 자동으로 요약/갱신합니다.
@@ -63,7 +63,7 @@ Mobile-Ready: 고해상도 스마트폰 사진(50MB+) 업로드를 완벽 지원
 
 Interactive UI: 직관적인 토스트 알림(Toast)과 모달 창을 통해 사용자 경험을 강화했습니다.
 
-Auto-Cleanup**: 1개월 이상 지난 오래된 대화 내역을 감지하여, 팝업을 통해 정리를 유도합니다. (DB 성능 최적화)
+Auto-Cleanup: 1개월 이상 지난 오래된 대화 내역을 감지하여, 팝업을 통해 정리를 유도합니다. (DB 성능 최적화)
 
 
 ---

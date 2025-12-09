@@ -1019,30 +1019,36 @@
         }
         async function logout() { await fetch('/api/auth/logout', {method:'POST'}); location.reload(); }
 
-        // ▼▼▼ [교체] 통합된 initApp 함수 (관리자 강제 표시 기능 포함) ▼▼▼
+        // ▼▼▼ [수정] initApp 함수: 관리자 버튼 표시 로직 추가 ▼▼▼
         function initApp() {
             document.getElementById('auth-screen').style.display = 'none';
             document.getElementById('app-container').style.display = 'flex';
             
-            // 모바일/PC 사이드바 초기 상태 설정
             if (isMobile()) document.getElementById('app-container').classList.remove('mobile-sidebar-open');
             else document.getElementById('app-container').classList.add('sidebar-closed'); 
             
             document.getElementById('user-display-name').innerText = `Welcome, ${currentUser.username}`;
             
-            // 1. Admin 패널 버튼 표시
-            // 관리자 여부에 따라 안내 문구 표시/숨김
+            // 1. Admin 패널 버튼 및 안내 문구 표시 (핵심 수정!)
             if (currentUser.role === 'admin') {
+                // (1) 팝업창 내 관리자 안내 문구 표시
                 document.getElementById('cleanup-admin-note').style.display = 'block';
+                
+                // (2) 🔥 [누락되었던 부분] 사이드바의 'Admin Dashboard' 버튼 표시
+                document.getElementById('admin-panel-btn').style.display = 'block'; 
+            } else {
+                // 일반 유저는 숨김 (혹시 모를 초기화)
+                document.getElementById('admin-panel-btn').style.display = 'none';
             }
             
-            // 2. 🔥 [핵심 수정] 바나나 버튼 표시 로직
-            // 권한이 있거나(allowImage), 관리자(admin)이거나, 아이디가 'shoo.kim'이면 무조건 보임
+            // 2. 바나나 버튼 표시 로직
             if (currentUser.allowImage || currentUser.role === 'admin' || currentUser.username === 'shoo.kim') {
                 document.getElementById('banana-btn').style.display = 'block';
             } else {
                 document.getElementById('banana-btn').style.display = 'none';
             }
+            
+
             
             // 3. 모델 선택창 잠금 처리
             const modelSelect = document.getElementById('model-select');
