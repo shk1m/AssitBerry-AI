@@ -1,7 +1,7 @@
 require('dotenv').config();
 const express = require('express');
 const bodyParser = require('body-parser');
-const session = require('express-session');
+const session = require('express-session'); 
 const bcrypt = require('bcrypt'); 
 const db = require('./database');
 const { GoogleGenAI } = require('@google/genai');
