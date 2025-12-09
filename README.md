@@ -4,7 +4,7 @@
 Google Gemini Pro/Flash 및 Nano banana를 기반으로 하며, 사내 인프라(SCP, Spark, Airflow) 트러블슈팅 지원 문서 작성 자동화 기능을 제공합니다.
 
 ![License](https://img.shields.io/badge/License-Private-red)
-![Node](https://img.shields.io/badge/Node.js-%3E%3D18-green)
+![Node](https://img.shields.io/badge/Node.js-%3E%3D18-green) 
 ![Status](https://img.shields.io/badge/Status-Production-blue)
 
 ---
