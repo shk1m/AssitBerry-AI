@@ -14,6 +14,8 @@ const upload = multer({ storage: multer.memoryStorage() }); // 🔥 파일을 �
 const app = express();
 const PORT = 3000;
 
+console.log("ENV KEY:", process.env.GEMINI_API_KEY);
+
 if (!process.env.GEMINI_API_KEY) {
     console.error("❌ Error: GEMINI_API_KEY Missing");
     process.exit(1);
@@ -21,11 +23,43 @@ if (!process.env.GEMINI_API_KEY) {
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
-// 🔥 실제 매핑될 모델 ID (Google API 기준)
+// [2026.03.17 추가] 실제 매핑될 모델 ID (Google API 기준)
 const MODEL_MAP = {
-    'gemini-2.5-flash': 'gemini-2.5-flash', // Speed (최신 Flash)
-    'gemini-3-pro': 'gemini-3-pro-preview'            // Expert (최신 Pro)
+    'gemini-3.1-flash-lite': 'gemini-3.1-flash-lite-preview',
+    'gemini-3.1-pro': 'gemini-3.1-pro-preview',
+    'gemini-3-flash': 'gemini-3-flash-preview' 
 };
+
+// ▼▼▼ [2026.03.17 추가] [비용 계산용 추가] 100만 토큰 당 가격 (달러 기준) ▼▼▼
+const PRICING = {
+    'gemini-3.1-flash-lite-preview': { input: 0.075, output: 0.30 },
+    'gemini-3-flash-preview': { input: 0.075, output: 0.30 },
+    'gemini-3.1-pro-preview': { input: 1.25, output: 5.00 }
+};
+
+const trackUsage = (userId, modelName, usageMetadata, isImage = false) => {
+    return new Promise((resolve) => {
+        let cost = 0;
+        if (isImage) {
+            cost = 0.03; // 이미지 1장 생성당 약 $0.03
+        } else if (usageMetadata) {
+            const price = PRICING[modelName] || PRICING['gemini-3-flash-preview'];
+            const inputTokens = usageMetadata.promptTokenCount || 0;
+            const outputTokens = usageMetadata.candidatesTokenCount || 0;
+            cost = ((inputTokens / 1000000) * price.input) + ((outputTokens / 1000000) * price.output);
+        }
+
+        if (cost > 0) {
+            db.run(`UPDATE users SET 
+                    monthly_cost = IFNULL(monthly_cost, 0) + ?, 
+                    total_cost = IFNULL(total_cost, 0) + ? 
+                    WHERE id = ?`, [cost, cost, userId], () => resolve());
+        } else {
+            resolve();
+        }
+    });
+};
+// ▲▲▲ [추가 완료] ▲▲▲
 
 app.use(express.static('public'));
 app.use(bodyParser.json());
@@ -155,7 +189,7 @@ const updateUserMemory = async (userId, userPrompt, modelResponse) => {
         [Task]: Merge new facts/preferences concisely.
         `;
         
-        const memModel = ai.getGenerativeModel({ model: 'gemini-2.5-flash' });
+        const memModel = ai.getGenerativeModel({ model: 'gemini-3.1-flash-lite' });
         const result = await memModel.generateContent(updatePrompt);
         const newMemory = result.response.text();
         
@@ -247,25 +281,37 @@ app.post('/api/auth/login', (req, res) => {
         if (!match) return res.status(401).json({ error: '비번 불일치' });
         if (!user.is_approved) return res.status(403).json({ error: '승인 대기' });
         
+// [2026.03.17 추가] 수정
         req.session.userId = user.id; req.session.username = user.username;
         req.session.role = user.role; req.session.allowPro = user.allow_pro;
-        req.session.allowImage = user.allow_image; // 🔥 권한 추가
+        req.session.allowImage = user.allow_image;
+        req.session.allowFlash = user.allow_flash; // 🔥 추가
         
-        res.json({ success: true, user: { username: user.username, role: user.role, allowPro: user.allow_pro, allowImage: user.allow_image } });
+        res.json({ success: true, user: { username: user.username, role: user.role, allowPro: user.allow_pro, allowImage: user.allow_image, allowFlash: user.allow_flash } });
     });
 });
 app.post('/api/auth/logout', (req, res) => { req.session.destroy(); res.json({ success: true }); });
 
+// [2026.03.17 추가] 수정
 app.get('/api/auth/me', (req, res) => { 
     if(!req.session.userId) return res.status(401).json(null); 
-    res.json({ username: req.session.username, role: req.session.role, allowPro: req.session.allowPro, allowImage: req.session.allowImage }); 
+    res.json({ username: req.session.username, role: req.session.role, allowPro: req.session.allowPro, allowImage: req.session.allowImage, allowFlash: req.session.allowFlash }); 
 });
 
+// ▼▼▼ [2026.03.17 추가] 내 비용 정보 가져오기 API ▼▼▼
+app.get('/api/usage/me', isAuthenticated, (req, res) => {
+    db.get("SELECT monthly_cost, total_cost FROM users WHERE id = ?", [req.session.userId], (err, row) => {
+        if (err || !row) return res.json({ monthly: 0, total: 0 });
+        res.json({ monthly: row.monthly_cost || 0, total: row.total_cost || 0 });
+    });
+});
+// ▲▲▲ [추가 완료] ▲▲▲
+
 // Admin & Status APIs
-// ▼▼▼ [교체] 유저 목록 조회 (allow_image 추가됨) ▼▼▼
+// [2026.03.17 추가] 수정 (allow_flash 추가)
 app.get('/api/admin/users', isAuthenticated, isAdmin, (req, res) => {
-    // 🔥 여기에 allow_image를 꼭 적어줘야 DB 값을 가져옵니다!
-    db.all("SELECT id, username, role, is_approved, allow_pro, allow_image, created_at FROM users ORDER BY created_at DESC", [], (err, rows) => {
+    // 👇 [수정] SELECT 구문에 monthly_cost, total_cost를 추가하여 데이터베이스에서 꺼내오도록 변경
+    db.all("SELECT id, username, role, is_approved, allow_pro, allow_image, allow_flash, monthly_cost, total_cost, created_at FROM users ORDER BY created_at DESC", [], (err, rows) => {
         if (err) return res.status(500).json({error: err.message});
         res.json(rows);
     });
@@ -314,11 +360,11 @@ app.get('/api/admin/status', isAuthenticated, isAdmin, (req, res) => {
     });
 });
 // ▲▲▲ [교체] 여기까지 ▲▲▲
-// ▼▼▼ [교체] 관리자 유저 업데이트 API (allow_image 추가됨) ▼▼▼
+// [2026.03.17 추가] 수정
 app.post('/api/admin/update', isAuthenticated, isAdmin, (req, res) => {
-    const { id, is_approved, allow_pro, allow_image } = req.body;
-    db.run("UPDATE users SET is_approved = ?, allow_pro = ?, allow_image = ? WHERE id = ?", 
-        [is_approved, allow_pro, allow_image, id], 
+    const { id, is_approved, allow_pro, allow_image, allow_flash } = req.body;
+    db.run("UPDATE users SET is_approved = ?, allow_pro = ?, allow_image = ?, allow_flash = ? WHERE id = ?", 
+        [is_approved, allow_pro, allow_image, allow_flash, id],
         (err) => { 
             if(err) return res.status(500).json({error:err.message}); 
             res.json({success:true}); 
@@ -524,11 +570,15 @@ app.post('/api/chat', isAuthenticated, upload.array('files'), async (req, res) =
     const isAdminUser = (req.session.role === 'admin');
 
     // 권한 체크
-    if (modelName === 'gemini-3-pro' && !req.session.allowPro) {
+    if (modelName === 'gemini-3.1-pro' && !req.session.allowPro) {
         return res.status(403).json({ error: 'Pro access required.' });
     }
+// [2026.03.17 추가] 아래에 추가
+    if (modelName === 'gemini-3-flash' && !req.session.allowFlash && req.session.role !== 'admin') {
+        return res.status(403).json({ error: 'Flash access required.' });
+    }
 
-    const targetEngine = MODEL_MAP[modelName] || 'gemini-2.5-flash';
+    const targetEngine = MODEL_MAP[modelName] || 'gemini-3.1-flash-lite';
 
     // 시스템 프롬프트 설정
     let baseInstruction = SYSTEM_INSTRUCTION_GENERAL;
@@ -616,10 +666,16 @@ app.post('/api/chat', isAuthenticated, upload.array('files'), async (req, res) =
             model: targetEngine,
             config: { 
                 systemInstruction: finalInstruction,
-                tools: [{ googleSearch: {} }, { codeExecution: {} }]
+                tools: [{ googleSearch: {} }]
             },
             contents: contents 
         });
+
+        // ▼▼▼ [여기에 딱 3줄 추가!!] ▼▼▼
+        if (response.usageMetadata) {
+            await trackUsage(userId, targetEngine, response.usageMetadata, false);
+        }
+        // ▲▲▲ [추가 완료] ▲▲▲
 
         // 응답 처리 (코드 실행 결과 포함)
         let responseText = "";
@@ -645,7 +701,7 @@ app.post('/api/chat', isAuthenticated, upload.array('files'), async (req, res) =
                 let summaryInput = message || "";
                 if (summaryInput.length > 500) summaryInput = summaryInput.substring(0, 500);
 
-                const titleModel = ai.getGenerativeModel({ model: 'gemini-2.5-flash' });
+                const titleModel = ai.getGenerativeModel({ model: 'gemini-3.1-flash-lite' });
                 const titlePrompt = `Summarize into a concise title (Korean, Max 15 chars). No quotes.\nText: ${summaryInput}`;
                 const titleRes = await titleModel.generateContent(titlePrompt);
                 let newTitle = titleRes.response.text().trim().replace(/["'*]/g, "");
@@ -725,6 +781,10 @@ app.post('/api/image', isAuthenticated, upload.array('files'), async (req, res) 
             config: { responseModalities: ["IMAGE"] }
         });
 
+        // ▼▼▼ [여기에 딱 2줄 추가!!] ▼▼▼
+        await trackUsage(req.session.userId, 'gemini-3-pro-image-preview', null, true);
+        // ▲▲▲ [추가 완료] ▲▲▲
+
         const candidates = response.candidates;
         if (!candidates || !candidates[0]?.content?.parts) throw new Error("API 응답 없음");
 
@@ -760,5 +820,18 @@ app.post('/api/image', isAuthenticated, upload.array('files'), async (req, res) 
 });
 // ▲▲▲ [수정 완료] 2. 나노바나나 라우트 끝 ▲▲▲
 
+// ▼▼▼ [2026.03.17 추가]  비용 컬럼 업데이트용 코드 ▼▼▼
+db.run("ALTER TABLE users ADD COLUMN monthly_cost REAL DEFAULT 0.0", (err) => {
+    if (!err) console.log("✅ DB 업데이트 완료: monthly_cost 컬럼 추가됨");
+});
+db.run("ALTER TABLE users ADD COLUMN total_cost REAL DEFAULT 0.0", (err) => {
+    if (!err) console.log("✅ DB 업데이트 완료: total_cost 컬럼 추가됨");
+});
+// ▲▲▲ [추가] 여기까지 ▲▲▲
+
+// [2026.03.17 추가] 수정 (바로 위에 DB 업데이트 로직 추가)
+db.run("ALTER TABLE users ADD COLUMN allow_flash INTEGER DEFAULT 0", (err) => {
+    if (!err) console.log("✅ DB 업데이트 완료: allow_flash 컬럼 추가됨");
+});
 
 app.listen(PORT, () => { console.log(`Server started on http://localhost:${PORT}`); });

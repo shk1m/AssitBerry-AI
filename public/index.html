@@ -248,6 +248,31 @@
             display: flex; gap: 15px; align-items: center; z-index: 10; 
             position: absolute; top: 0; width: 100%;
         }
+
+        /* =========================================
+           Usage Meter (헤더 우측 비용 표시)
+           ========================================= */
+        .usage-meter {
+            display: flex; align-items: center; gap: 10px;
+            font-size: 0.8rem; color: var(--text-secondary);
+            margin-left: auto; /* 우측 정렬 */
+            background: rgba(0,0,0,0.2); padding: 6px 14px; border-radius: 20px;
+            border: 1px solid var(--border-subtle);
+        }
+        .usage-meter strong { color: var(--accent-primary); letter-spacing: 0.5px; }
+        .usage-meter .sep { color: rgba(255,255,255,0.1); }
+        /* [2026.03.17 추가] 커피 문구 애니메이션 추가 */
+        .coffee-link {
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0% { opacity: 0.8; }
+            50% { opacity: 1; text-shadow: 0 0 10px rgba(252, 196, 25, 0.5); }
+            100% { opacity: 0.8; }
+        }
+
+        /*============================================*/
+
         #toggle-sidebar-btn { background: transparent; border: none; color: var(--text-secondary); cursor: pointer; padding: 8px; border-radius: 8px; transition: 0.2s; }
         #toggle-sidebar-btn:hover { background: rgba(255,255,255,0.1); color: white; }
 
@@ -302,14 +327,14 @@
 
         /* (아래 코드는 기존 유지) */
 
-        /* ▼▼▼ [수정] 내용물이 접혔을 때 ▼▼▼ */
+        /* ▼▼▼ [수정] 접힌 상태일 때의 텍스트 영역 (조금 더 컴팩트하게) ▼▼▼ */
         .message.user .content.collapsed .markdown-body {
-            max-height: 200px;       
+            max-height: 120px; /* 너무 길게 보이지 않도록 높이 조정 */
             overflow: hidden;
             
-            /* 아래쪽을 자연스럽게 흐리게 처리 */
-            mask-image: linear-gradient(to bottom, black 60%, transparent 100%);
-            -webkit-mask-image: linear-gradient(to bottom, black 60%, transparent 100%);
+            /* 아래쪽을 자연스럽게 흐리게 처리 (그라데이션 마스크) */
+            mask-image: linear-gradient(to bottom, black 40%, transparent 100%);
+            -webkit-mask-image: linear-gradient(to bottom, black 40%, transparent 100%);
         }
 
         /* AI Bubble: Glass Card */
@@ -362,36 +387,40 @@
             -webkit-mask-image: linear-gradient(to bottom, black 80%, transparent 100%);
         }
 
-        /* ▼▼▼ [수정] 접기/펼치기 버튼 (너비 계산 보정) ▼▼▼ */
+        /* ▼▼▼ [수정] 전체 보기 버튼 (투박하지 않고 깔끔한 하단 바 형태로 변경) ▼▼▼ */
         .read-more-btn {
-            /* box-sizing을 border-box로 하여 패딩 포함 크기 계산 */
             box-sizing: border-box; 
-            
-            /* 좌우 패딩(18px)을 고려하여 꽉 채우기 */
             width: calc(100% + 36px); 
             margin-left: -18px;
             margin-right: -18px;
+            margin-bottom: -12px; /* 하단 패딩 영역을 덮도록 딱 붙임 */
             
-            background: var(--accent-gradient); /* 말풍선과 동일 배경 */
-            
+            /* 말풍선과 어울리는 반투명 블랙 느낌 */
+            background: rgba(0, 0, 0, 0.15); 
             border: none;
-            border-top: 1px solid rgba(255, 255, 255, 0.3); 
+            border-top: 1px solid rgba(255, 255, 255, 0.1); 
             
             color: #fff;
             font-size: 0.85rem;
-            font-weight: 700;
-            padding: 12px 0; /* 터치하기 좋게 영역 확장 */
+            font-weight: 600;
+            padding: 10px 0; 
             cursor: pointer;
-            transition: 0.2s;
+            transition: background 0.2s ease;
             margin-top: 5px; 
             
-            border-bottom-left-radius: 18px;  
+            /* 말풍선 하단 모서리에 딱 맞춤 */
+            border-bottom-left-radius: 4px;  
             border-bottom-right-radius: 4px;
             
-            /* 그림자 유지 */
-            box-shadow: 0 4px 15px rgba(92, 124, 250, 0.2); 
+            /* 아이콘과 텍스트 정렬 */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
         }
-        .read-more-btn:hover { filter: brightness(1.1); }
+        .read-more-btn:hover { 
+            background: rgba(0, 0, 0, 0.25); 
+        }
         
         /* 텍스트 감싸는 래퍼 (JS에서 추가됨) */
         .markdown-body {
@@ -628,15 +657,21 @@
         /* ▼▼▼ [복붙] 채팅창 이미지 예쁘게 만들기 ▼▼▼ */
 
         /* 1. 이미지 크기 자동 조절 및 디자인 */
-        .message .content img {
-            max-width: 100%;       /* 말풍선 너비를 넘지 않게 */
-            height: auto;          /* 비율 유지 */
-            border-radius: 12px;   /* 모서리 둥글게 */
-            margin-top: 10px;      /* 텍스트와 간격 */
-            box-shadow: 0 4px 15px rgba(0,0,0,0.3); /* 그림자 효과 */
-            display: block;        /* 줄바꿈 */
-            cursor: pointer;       /* 클릭 가능 표시 */
-            transition: transform 0.2s; /* 부드러운 효과 */
+        /* ▼▼▼ [수정] 말풍선 공통 스타일 (양옆 깨짐 완벽 방지) ▼▼▼ */
+        .message .content { 
+            padding: 12px 18px; 
+            border-radius: 18px; 
+            font-size: 1rem; 
+            line-height: 1.75; 
+            position: relative; 
+            
+            /* 🔥 가로 깨짐 방지 핵심 속성 */
+            word-break: break-all;      /* 긴 단어 강제 줄바꿈 */
+            word-break: break-word;     /* 지원 브라우저용 */
+            overflow-wrap: anywhere;    /* 긴 URL이나 기호도 상자 안에서 줄바꿈 */
+            max-width: 100%;            /* 화면 밖으로 넘어가지 않게 제한 */
+            
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
         }
 
         /* 2. 이미지 마우스 올렸을 때 살짝 커지기 */
@@ -681,6 +716,27 @@
         }
         /* ▲▲▲ [복붙] 여기까지 ▲▲▲ */
 
+        /* ▼▼▼ [2026.03.17 추가] 플래시 모드 (초록색 띠) ▼▼▼ */
+        body.flash-mode {
+            --bg-gradient: linear-gradient(135deg, #051a0d 0%, #0a2e17 100%);
+            --sidebar-glass: rgba(5, 26, 13, 0.85);
+            --header-glass: rgba(0, 255, 128, 0.05);
+            --accent-primary: #20c997;
+            --accent-gradient: linear-gradient(135deg, #20c997 0%, #63e6be 100%);
+            --text-primary: #e6fcf5;
+        }
+        body.flash-mode .input-wrapper {
+            border: 2px solid #20c997 !important;
+            box-shadow: 0 0 30px rgba(32, 201, 151, 0.3), inset 0 0 15px rgba(32, 201, 151, 0.1) !important;
+            background: rgba(10, 40, 20, 0.9) !important;
+        }
+        body.flash-mode #send-btn {
+            background: linear-gradient(135deg, #20c997 0%, #38d9a9 100%) !important;
+            color: #000 !important;
+            box-shadow: 0 0 15px rgba(32, 201, 151, 0.5) !important;
+        }
+        /* ▲▲▲ [추가] 여기까지 ▲▲▲ */
+
         /* ▼▼▼ [추가] 미니 파일 미리보기 스타일 ▼▼▼ */
         .mini-preview-item {
             position: relative;
@@ -707,6 +763,43 @@
             cursor: pointer; font-size: 1rem;
         }
         .mini-preview-item:hover .mini-preview-close { display: flex; } /* 마우스 올리면 삭제 버튼 뜸 */
+
+
+        /* ▼▼▼ [추가] 프롬프트 개선 스타일 ▼▼▼ */
+        
+        /* 1. 유저 텍스트 보존 및 가로 스크롤 허용 */
+        .message.user .markdown-body {
+            white-space: pre-wrap;     /* 줄바꿈과 띄어쓰기를 그대로 보존 */
+            word-break: break-all;     /* 긴 영어/기호 강제 줄바꿈 */
+            overflow-x: auto;          /* 가로로 너무 길어지면 안에서만 스크롤되게 */
+            padding-right: 30px;       /* 우측 상단 복사 버튼과 겹치지 않게 여백 */
+        }
+
+        /* 2. 유저 말풍선용 복사 버튼 색상 조정 (배경이 파란색이므로) */
+        .message.user .msg-copy-btn {
+            background: rgba(0, 0, 0, 0.2); 
+            color: #fff;
+        }
+        .message.user .msg-copy-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        /* 3. 프롬프트 펼쳤을 때 '접기' 버튼을 화면 하단에 둥둥 띄우기 (Sticky) */
+        .message.user .content.expanded {
+            padding-bottom: 0 !important; 
+        }
+        .message.user .content.expanded .read-more-btn {
+            position: sticky;
+            bottom: 0px;                  /* 스크롤을 내려도 화면 맨 아래에 고정됨 */
+            z-index: 10;
+            background: rgba(30, 32, 40, 0.95); /* 글자를 가릴 수 있으므로 진한 불투명 배경 */
+            backdrop-filter: blur(8px);
+            border-top: 1px solid rgba(255,255,255,0.15);
+            box-shadow: 0 -10px 20px rgba(0,0,0,0.25); /* 버튼 위쪽으로 그림자 */
+            margin-bottom: 0;
+            border-radius: 0 0 4px 4px;
+        }
+        /* ▲▲▲ [추가] 여기까지 ▲▲▲ */
 
     </style>
 </head>
@@ -736,6 +829,10 @@
             <input type="password" id="signup-pw" class="auth-input" placeholder="Desired Password" onkeydown="handleAuthKey(event, 'signup')">
             <button class="auth-btn" onclick="register()">Submit Request</button>
             <button class="auth-secondary-btn" onclick="toggleAuth('login')">Return to Login</button>
+
+            <div style="margin-top: 25px; font-size: 0.8rem; color: var(--text-dim);">
+                Need access? Contact <a href="mailto:kimsangho0816@gmail.com" style="color: var(--accent-primary); text-decoration: none;">kimsangho0816@gmail.com</a>
+            </div>
         </div>
     </div>
 
@@ -766,7 +863,7 @@
 
             <h3 style="margin-top:30px; color:white; font-size:1.1rem;">User Management</h3>
              <div style="max-height:300px; overflow-y:auto; border:1px solid var(--border-subtle); border-radius:8px;">
-                <table class="admin-table"><thead><tr><th>User</th><th>Status</th><th>Pro</th><th>Action</th></tr></thead><tbody id="admin-user-list"></tbody></table>
+                <table class="admin-table"><thead><tr><th>User</th><th>Status</th><th>Pro</th><th>Cost (Month/Total)</th><th>Action</th></tr></thead><tbody id="admin-user-list"></tbody></table>
             </div>
             <button class="shutdown-btn" onclick="shutdownServer()" style="width:100%; margin-top:30px; background:rgba(255,107,107,0.1); color:#ff8787; border:1px solid #ff8787; padding:12px; border-radius:8px; font-weight:bold; cursor:pointer;">⏻ Emergency Shutdown</button>
         </div>
@@ -799,8 +896,9 @@
                 <button class="admin-btn" id="admin-panel-btn" onclick="openAdminPanel()" style="display:none;">Admin Dashboard</button>
                 
                 <select id="model-select">
-                    <option value="gemini-2.5-flash" selected>⚡ Gemini 2.5 Flash (Speed)</option>
-                    <option value="gemini-3-pro">🧠 Gemini 3 Pro (Expert)</option>
+                    <option value="gemini-3.1-flash-lite" selected>⚡ Gemini 3.1 Flash Lite (Speed)</option>
+                    <option value="gemini-3-flash">🌿 Gemini 3.0 Flash (Expert)</option>
+                    <option value="gemini-3.1-pro">🧠 Gemini 3.1 Pro (Pro)</option>
                 </select>
 
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-top:10px;">
@@ -820,6 +918,16 @@
                 </button>
                 
                 <span class="shining-text">AI Knowledge Partner</span>
+                <div class="usage-meter" id="usage-meter" style="display: none;">
+                    <span>
+                        <span id="usage-username" style="color:var(--text-primary); font-weight:bold; margin-right:4px;"></span>Total: <strong id="usage-total">$0.0000</strong>
+                    </span>
+                    <span class="sep">|</span>
+                    <span>Month: <strong id="usage-month">$0.0000</strong></span>
+                    
+                    <span class="coffee-link" style="cursor:help; font-weight:bold; color:#fcc419; margin-left:8px;" 
+                          title="개발자의 지갑이 얇아지고 있습니다... 💸">☕ 커피 사주기 (마음만)</span>
+                </div>
             </div>
             
             <div id="chat-container"></div>
@@ -1019,6 +1127,26 @@
         }
         async function logout() { await fetch('/api/auth/logout', {method:'POST'}); location.reload(); }
 
+        // ▼▼▼ [수정] 비용 데이터 불러오기 함수 (사용자 이름 표시 추가) ▼▼▼
+        async function fetchUsage() {
+            try {
+                const res = await fetch('/api/usage/me');
+                if (res.ok) {
+                    const data = await res.json();
+                    
+                    // 로그인된 계정 이름 렌더링
+                    if (currentUser && currentUser.username) {
+                        document.getElementById('usage-username').innerText = `${currentUser.username}님의 api비용`;
+                    }
+
+                    document.getElementById('usage-month').innerText = `$${data.monthly.toFixed(4)}`;
+                    document.getElementById('usage-total').innerText = `$${data.total.toFixed(4)}`;
+                    document.getElementById('usage-meter').style.display = 'flex';
+                }
+            } catch (e) { console.error("Usage fetch error", e); }
+        }
+        // ▲▲▲ [수정] 여기까지 ▲▲▲
+
         // ▼▼▼ [수정] initApp 함수: 관리자 버튼 표시 로직 추가 ▼▼▼
         function initApp() {
             document.getElementById('auth-screen').style.display = 'none';
@@ -1050,13 +1178,31 @@
             
 
             
+            // [2026.03.17 추가] 수정 (옵션을 아예 삭제해버림)
             // 3. 모델 선택창 잠금 처리
             const modelSelect = document.getElementById('model-select');
-            const proOpts = [modelSelect.querySelector('option[value="gemini-3-pro"]')];
+            const proOpts = [modelSelect.querySelector('option[value="gemini-3.1-pro"]')];
             if(!currentUser.allowPro) {
-                proOpts.forEach(opt => { opt.disabled = true; opt.innerText += " (Locked)"; });
-                modelSelect.value = 'gemini-2.5-flash';
+                proOpts.forEach(opt => { 
+                    if (opt) opt.remove(); // 🔥 목록에서 완전히 제거
+                });
+                modelSelect.value = 'gemini-3.1-flash-lite';
             }
+
+            // [2026.03.17 추가] 아래에 추가
+            const flashOpts = [modelSelect.querySelector('option[value="gemini-3-flash"]')];
+            if(!currentUser.allowFlash && currentUser.role !== 'admin' && currentUser.username !== 'shoo.kim') {
+                flashOpts.forEach(opt => { opt.disabled = true; opt.innerText += " (Locked)"; });
+            }
+
+            // 모델 변경 시 테마 전환 이벤트 등록 (한 번만 등록되도록 밖으로 빼도 되지만, initApp 안에 넣어도 무방합니다)
+            modelSelect.addEventListener('change', function(e) {
+                if (e.target.value === 'gemini-3-flash') {
+                    document.body.classList.add('flash-mode');
+                } else {
+                    document.body.classList.remove('flash-mode');
+                }
+            });
 
             // 4. 세션 목록 로드
             loadSessions().then(has => { 
@@ -1068,6 +1214,7 @@
                 // ▼▼▼ [추가] 로그인 1.5초 뒤에 정리 팝업 체크 ▼▼▼
                 setTimeout(checkExpiredSessions, 1500);
             });
+            fetchUsage();
         }
         // ▲▲▲ [교체] 여기까지 ▲▲▲
 
@@ -1442,7 +1589,8 @@
                     loadSessions(); 
                 }
                 // ▲▲▲ [추가] 여기까지 ▲▲▲
-                
+                // ▼▼▼ [추가] 메시지 전송 후 비용 실시간 갱신
+                fetchUsage();
             } catch(e) {
                 if(loading.parentNode) chatContainer.removeChild(loading);
                 appendMessage('model', `❌ Error: ${e.message}`, false);
@@ -1463,51 +1611,53 @@
             const textWrapper = document.createElement('div');
             textWrapper.className = 'markdown-body'; // CSS 적용 대상
             
-            const MAX_LENGTH = 1000; // 1000자 이상일 때 접기
+            // 1000자는 너무 기니까 500자 기준으로 더 일찍 깔끔하게 접어줍니다.
+            const MAX_LENGTH = 500; 
             
             if (role === 'user' && content.length > MAX_LENGTH) {
                 // 1. 접힌 상태로 시작
                 contentDiv.classList.add('collapsed'); 
-                // 🔥 [추가] 버튼이 달리므로 하단 패딩을 없애는 클래스 추가
                 contentDiv.classList.add('has-footer');
                 
-                // 텍스트 렌더링 (줄바꿈 처리 포함)
-                // (사용자 메시지는 보통 마크다운보다는 텍스트 그대로 보여주는 게 안전할 수 있음)
                 textWrapper.innerText = content; 
                 contentDiv.appendChild(textWrapper);
                 
-                // 2. 토글 버튼 생성
+                // 2. 토글 버튼 생성 (SVG 아이콘 추가로 고급스럽게)
                 const toggleBtn = document.createElement('button');
                 toggleBtn.className = 'read-more-btn';
-                toggleBtn.innerHTML = `🔽 전체 보기 (${content.length.toLocaleString()}자)`;
+                toggleBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg> 프롬프트 전체 보기 (${content.length.toLocaleString()}자)`;
                 
-                // ... (버튼 생성 부분)
                 toggleBtn.onclick = (e) => {
                     e.stopPropagation(); 
                     const isCollapsed = contentDiv.classList.contains('collapsed');
                     
                     if (isCollapsed) {
-                        // [펼치기]
+                        // [펼치기 동작]
                         contentDiv.classList.remove('collapsed');
-                        toggleBtn.innerHTML = `🔼 접기`;
+                        contentDiv.classList.add('expanded');
+                        toggleBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="18 15 12 9 6 15"></polyline></svg> 프롬프트 접기`;
                         
-                        // 흐림 효과 제거
                         textWrapper.style.maskImage = 'none';
                         textWrapper.style.webkitMaskImage = 'none';
                         
-                        // ★ 펼쳤을 때는 내용을 읽어야 하므로 '시작 부분'이 보이게 함 (사용성 고려)
-                        // (만약 무조건 끝으로 가고 싶다면 'end'로 변경 가능하지만, 읽기 불편할 수 있음)
-                        // div.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                        // 🔥 핵심: 펼치자마자 해당 프롬프트의 '시작 부분'으로 부드럽게 자동 스크롤
+                        setTimeout(() => {
+                            div.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                        }, 50);
+                        
                     } else {
-                        // [접기]
+                        // [접기 동작]
                         contentDiv.classList.add('collapsed');
-                        toggleBtn.innerHTML = `🔽 전체 보기 (${content.length.toLocaleString()}자)`;
+                        contentDiv.classList.remove('expanded');
+                        toggleBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg> 프롬프트 전체 보기 (${content.length.toLocaleString()}자)`;
                         
                         textWrapper.style.maskImage = '';
                         textWrapper.style.webkitMaskImage = '';
                         
-                        // 접었을 때는 버튼이 잘 보이도록 위치 조정
-                        toggleBtn.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        // 🔥 핵심: 접었을 때 화면이 튀지 않게 현재 말풍선 위치로 다시 스크롤
+                        setTimeout(() => {
+                            div.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        }, 50);
                     }
                 };
                 
@@ -1523,6 +1673,24 @@
                 contentDiv.appendChild(textWrapper);
             }
             
+            // ▼▼▼ [추가] 유저 메시지에도 복사 버튼 달아주기 ▼▼▼
+            if (role === 'user') {
+                const userCopyBtn = document.createElement('button');
+                userCopyBtn.className = 'msg-copy-btn';
+                userCopyBtn.title = 'Copy Prompt';
+                userCopyBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>`;
+                
+                userCopyBtn.onclick = (e) => {
+                    e.stopPropagation(); // 버튼 눌렀을 때 말풍선 이벤트 겹침 방지
+                    safeCopy(content, userCopyBtn);
+                };
+                contentDiv.appendChild(userCopyBtn);
+            }
+            // ▲▲▲ [추가] 여기까지 ▲▲▲
+            
+            div.appendChild(contentDiv);        // <--- 기존 코드
+            chatContainer.appendChild(div);     // <--- 기존 코드
+
             div.appendChild(contentDiv);
             chatContainer.appendChild(div);
             
@@ -1667,6 +1835,12 @@
                     ? `<span style="font-size:1.2rem; margin-left:8px;" title="Image Gen ON">🍌</span>`
                     : `<span style="font-size:1.2rem; margin-left:8px; opacity:0.1; filter:grayscale(100%);" title="Image Gen OFF">🍌</span>`;
 
+                // [2026.03.17 추가] 아래에 추가
+                // (2.5) Flash 배지
+                const flashBadge = (u.allow_flash || isAdmin)
+                    ? `<span style="color:#20c997; font-weight:800; margin-left:8px;">FLASH</span>` 
+                    : `<span style="color:#868e96; font-size:0.9rem; margin-left:8px;">FLASH</span>`;
+
                 // (3) 바나나 버튼 로직 (관리자는 버튼 비활성화)
                 let bananaBtn;
                 if (isAdmin) {
@@ -1680,30 +1854,39 @@
                     const btnColor = currentVal === 1 ? '#fab005' : 'rgba(255,255,255,0.1)';
                     const txtColor = currentVal === 1 ? '#000' : '#888';
                     
-                    bananaBtn = `<button class="action-btn" onclick="updateUser(${u.id},${u.is_approved},${u.allow_pro},${nextVal})" style="background:${btnColor}; color:${txtColor}; font-weight:bold;">🍌</button>`;
+                // [2026.03.17 추가] 수정 (파라미터 맨 끝에 u.allow_flash 추가)
+                    bananaBtn = `<button class="action-btn" onclick="updateUser(${u.id},${u.is_approved},${u.allow_pro},${nextVal},${u.allow_flash})" style="background:${btnColor}; color:${txtColor}; font-weight:bold;">🍌</button>`;
                 }
 
+                // [2026.03.17 추가] 통째로 덮어쓰기 (주석 제거 및 HTML 구조 복구)
                 tr.innerHTML = `
                     <td style="font-weight:bold; color:white;">
                         ${u.username} ${isAdmin ? '👑' : ''}
                     </td>
                     <td><span style="color:${u.is_approved?'var(--success)':'var(--error)'}">${u.is_approved?'Active':'Wait'}</span></td>
-                    
-                    <td style="display:flex; align-items:center;">
-                        ${proBadge} 
-                        <span style="color:rgba(255,255,255,0.1); margin:0 8px;">|</span> 
-                        ${bananaBadge}
-                    </td>
-                    
                     <td>
-                        <button class="action-btn" onclick="updateUser(${u.id},1,${u.allow_pro},${u.allow_image})" style="background:#51cf66; color:#fff;">OK</button>
-                        
-                        <button class="action-btn" onclick="updateUser(${u.id},${u.is_approved},${u.allow_pro?0:1},${u.allow_image})" style="background:${u.allow_pro?'#1c7ed6':'#339af0'}; color:#fff;">Pro</button>
-                        
+                        <div style="display:flex; align-items:center;">
+                            ${proBadge} 
+                            <span style="color:rgba(255,255,255,0.1); margin:0 8px;">|</span> 
+                            ${flashBadge}
+                            <span style="color:rgba(255,255,255,0.1); margin:0 8px;">|</span> 
+                            ${bananaBadge}
+                        </div>
+                    </td>
+                    <td style="font-size: 0.85rem;">
+                        <span style="color:#51cf66;" title="이번 달 비용">$${(u.monthly_cost || 0).toFixed(4)}</span><br>
+                        <span style="color:var(--text-dim);" title="누적 비용">$${(u.total_cost || 0).toFixed(4)}</span>
+                    </td>
+                    <td>
+                        <button class="action-btn" onclick="updateUser(${u.id},1,${u.allow_pro},${u.allow_image},${u.allow_flash})" style="background:#51cf66; color:#fff;">OK</button>
+                        <button class="action-btn" onclick="updateUser(${u.id},${u.is_approved},${u.allow_pro?0:1},${u.allow_image},${u.allow_flash})" style="background:${u.allow_pro?'#1c7ed6':'#339af0'}; color:#fff;">Pro</button>
+                        <button class="action-btn" onclick="updateUser(${u.id},${u.is_approved},${u.allow_pro},${u.allow_image},${u.allow_flash?0:1})" style="background:${u.allow_flash?'#099268':'#20c997'}; color:#fff;">Flash</button>
                         ${bananaBtn}
-                        
                         <button class="action-btn delete-user-btn" onclick="deleteUser(${u.id})">Del</button>
                     </td>`;
+
+
+
                 tbody.appendChild(tr);
             });
         }
@@ -1759,10 +1942,11 @@
             } catch(e) { console.error(e); }
         }
 
-        // ▼▼▼ [수정됨] updateUser 함수 (바나나 값 'i'가 추가됨) ▼▼▼
-        async function updateUser(id, a, p, i) { 
-            // i (allow_image)가 undefined일 경우 0으로 처리 (안전장치)
+        // [2026.03.17 추가] 수정
+        // ▼▼▼ [수정됨] updateUser 함수 ▼▼▼
+        async function updateUser(id, a, p, i, f) { // 🔥 f(allow_flash) 추가
             if (i === undefined || i === null) i = 0;
+            if (f === undefined || f === null) f = 0; // 🔥 추가
 
             await fetch('/api/admin/update', {
                 method: 'POST', 
@@ -1771,9 +1955,10 @@
                     id: id, 
                     is_approved: a, 
                     allow_pro: p, 
-                    allow_image: i  // 🔥 여기가 빠져 있어서 DB 저장이 안 됐던 겁니다!
+                    allow_image: i,
+                    allow_flash: f // 🔥 추가
                 })
-            }); 
+            });
             
             openAdminPanel(); // 목록 새로고침
         }

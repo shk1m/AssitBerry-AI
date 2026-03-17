@@ -10,7 +10,7 @@ db.run("PRAGMA journal_mode = WAL;");
 db.run("PRAGMA foreign_keys = ON;");
 
 db.serialize(() => {
-    // 1. 사용자
+// 1. 사용자
     db.run(`CREATE TABLE IF NOT EXISTS users (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         username TEXT UNIQUE,
@@ -19,6 +19,9 @@ db.serialize(() => {
         is_approved INTEGER DEFAULT 0,
         allow_pro INTEGER DEFAULT 0,
         allow_image INTEGER DEFAULT 0,  -- 여기 나노바나나 추가!
+        allow_flash INTEGER DEFAULT 0,  -- 플래시 권한 추가
+        monthly_cost REAL DEFAULT 0.0,  -- 🔥 [추가] 이번 달 비용
+        total_cost REAL DEFAULT 0.0,    -- 🔥 [추가] 누적 총 비용
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )`);
 
@@ -53,6 +56,20 @@ db.serialize(() => {
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
     )`);
+
+    //[추가] 6. API 사용량 및 비용 로그 (추가)
+    db.run(`CREATE TABLE IF NOT EXISTS usage_logs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER,
+        model TEXT,
+        prompt_tokens INTEGER,
+        completion_tokens INTEGER,
+        cost REAL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+    )`);
+
 });
+
 
 module.exports = db;
