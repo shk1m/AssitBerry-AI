@@ -37,23 +37,35 @@ const PRICING = {
     'gemini-3.1-pro-preview': { input: 1.25, output: 5.00 }
 };
 
+//[2026.03.21 추가]
 const trackUsage = (userId, modelName, usageMetadata, isImage = false) => {
     return new Promise((resolve) => {
         let cost = 0;
+        let inputTokens = 0;
+        let outputTokens = 0;
+
         if (isImage) {
             cost = 0.03; // 이미지 1장 생성당 약 $0.03
         } else if (usageMetadata) {
             const price = PRICING[modelName] || PRICING['gemini-3-flash-preview'];
-            const inputTokens = usageMetadata.promptTokenCount || 0;
-            const outputTokens = usageMetadata.candidatesTokenCount || 0;
+            inputTokens = usageMetadata.promptTokenCount || 0;
+            outputTokens = usageMetadata.candidatesTokenCount || 0;
             cost = ((inputTokens / 1000000) * price.input) + ((outputTokens / 1000000) * price.output);
         }
 
         if (cost > 0) {
+            // 1. users 테이블 누적 비용 업데이트
             db.run(`UPDATE users SET 
                     monthly_cost = IFNULL(monthly_cost, 0) + ?, 
                     total_cost = IFNULL(total_cost, 0) + ? 
-                    WHERE id = ?`, [cost, cost, userId], () => resolve());
+                    WHERE id = ?`, [cost, cost, userId], () => {
+                
+                // 2. usage_logs 테이블에 상세 로그 인서트 (보너스 기능 추가!)
+                db.run(`INSERT INTO usage_logs (user_id, model, prompt_tokens, completion_tokens, cost) 
+                        VALUES (?, ?, ?, ?, ?)`, 
+                        [userId, modelName, inputTokens, outputTokens, cost], 
+                        () => resolve());
+            });
         } else {
             resolve();
         }
@@ -189,9 +201,12 @@ const updateUserMemory = async (userId, userPrompt, modelResponse) => {
         [Task]: Merge new facts/preferences concisely.
         `;
         
-        const memModel = ai.getGenerativeModel({ model: 'gemini-3.1-flash-lite' });
-        const result = await memModel.generateContent(updatePrompt);
-        const newMemory = result.response.text();
+        // [2026.03.23 수정] ai.getGenerativeModel 대신 메인 로직과 동일한 호출 방식 사용
+        const result = await ai.models.generateContent({
+            model: 'gemini-3.1-flash-lite-preview',
+            contents: [{ role: 'user', parts: [{ text: updatePrompt }] }]
+        });
+        const newMemory = result.text; // 수정됨
         
         db.run(`INSERT INTO user_memories (user_id, profile_data, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP)
                 ON CONFLICT(user_id) DO UPDATE SET profile_data = excluded.profile_data, updated_at = CURRENT_TIMESTAMP`, 
@@ -285,9 +300,10 @@ app.post('/api/auth/login', (req, res) => {
         req.session.userId = user.id; req.session.username = user.username;
         req.session.role = user.role; req.session.allowPro = user.allow_pro;
         req.session.allowImage = user.allow_image;
-        req.session.allowFlash = user.allow_flash; // 🔥 추가
+        req.session.allowFlash = user.allow_flash; // 추가
+        req.session.allowThinking = user.allow_thinking; // 2026.03.21추가
         
-        res.json({ success: true, user: { username: user.username, role: user.role, allowPro: user.allow_pro, allowImage: user.allow_image, allowFlash: user.allow_flash } });
+        res.json({ success: true, user: { username: user.username, role: user.role, allowPro: user.allow_pro, allowImage: user.allow_image, allowFlash: user.allow_flash, allowThinking: user.allow_thinking } });
     });
 });
 app.post('/api/auth/logout', (req, res) => { req.session.destroy(); res.json({ success: true }); });
@@ -295,7 +311,7 @@ app.post('/api/auth/logout', (req, res) => { req.session.destroy(); res.json({ s
 // [2026.03.17 추가] 수정
 app.get('/api/auth/me', (req, res) => { 
     if(!req.session.userId) return res.status(401).json(null); 
-    res.json({ username: req.session.username, role: req.session.role, allowPro: req.session.allowPro, allowImage: req.session.allowImage, allowFlash: req.session.allowFlash }); 
+    res.json({ username: req.session.username, role: req.session.role, allowPro: req.session.allowPro, allowImage: req.session.allowImage, allowFlash: req.session.allowFlash, allowThinking: req.session.allowThinking }); 
 });
 
 // ▼▼▼ [2026.03.17 추가] 내 비용 정보 가져오기 API ▼▼▼
@@ -307,11 +323,11 @@ app.get('/api/usage/me', isAuthenticated, (req, res) => {
 });
 // ▲▲▲ [추가 완료] ▲▲▲
 
-// Admin & Status APIs
-// [2026.03.17 추가] 수정 (allow_flash 추가)
+
+// [2026.03.21 추가새로운 코드 - 덮어쓰기]
 app.get('/api/admin/users', isAuthenticated, isAdmin, (req, res) => {
-    // 👇 [수정] SELECT 구문에 monthly_cost, total_cost를 추가하여 데이터베이스에서 꺼내오도록 변경
-    db.all("SELECT id, username, role, is_approved, allow_pro, allow_image, allow_flash, monthly_cost, total_cost, created_at FROM users ORDER BY created_at DESC", [], (err, rows) => {
+    // 🔥 핵심: SELECT 구문에 allow_thinking 컬럼 추가
+    db.all("SELECT id, username, role, is_approved, allow_pro, allow_image, allow_flash, allow_thinking, monthly_cost, total_cost, created_at FROM users ORDER BY created_at DESC", [], (err, rows) => {
         if (err) return res.status(500).json({error: err.message});
         res.json(rows);
     });
@@ -362,9 +378,9 @@ app.get('/api/admin/status', isAuthenticated, isAdmin, (req, res) => {
 // ▲▲▲ [교체] 여기까지 ▲▲▲
 // [2026.03.17 추가] 수정
 app.post('/api/admin/update', isAuthenticated, isAdmin, (req, res) => {
-    const { id, is_approved, allow_pro, allow_image, allow_flash } = req.body;
-    db.run("UPDATE users SET is_approved = ?, allow_pro = ?, allow_image = ?, allow_flash = ? WHERE id = ?", 
-        [is_approved, allow_pro, allow_image, allow_flash, id],
+    const { id, is_approved, allow_pro, allow_image, allow_flash, allow_thinking } = req.body;
+    db.run("UPDATE users SET is_approved = ?, allow_pro = ?, allow_image = ?, allow_flash = ?, allow_thinking = ? WHERE id = ?", 
+        [is_approved, allow_pro, allow_image, allow_flash, allow_thinking, id],
         (err) => { 
             if(err) return res.status(500).json({error:err.message}); 
             res.json({success:true}); 
@@ -563,8 +579,8 @@ app.get('/api/sessions/:id/messages', isAuthenticated, (req, res) => {
 // 🔥 Main Chat Logic (Modified for Mode Selection)
 // ▼▼▼ [교체] 파일 분석 지원 채팅 라우트 ▼▼▼
 app.post('/api/chat', isAuthenticated, upload.array('files'), async (req, res) => {
-    // 1. FormData 파싱
-    const { sessionId, message, modelName, modeName } = req.body;
+    // 1. FormData 파싱 (thinkingLevel 추가)
+    const { sessionId, message, modelName, modeName, thinkingLevel } = req.body;
     const files = req.files || []; 
     const userId = req.session.userId;
     const isAdminUser = (req.session.role === 'admin');
@@ -607,9 +623,55 @@ app.post('/api/chat', isAuthenticated, upload.array('files'), async (req, res) =
         // ★ [핵심 2] 여기서 딱 한 번만 저장합니다! (기존 중복 코드 삭제됨)
         await saveMessage(sessionId, 'user', dbContent, isAdminUser);
 
-        // 3. 이전 대화 기록 불러오기
-        const historyRows = await new Promise((resolve) => db.all("SELECT role, content FROM messages WHERE session_id = ? ORDER BY created_at ASC", [sessionId], (err, r) => resolve(r||[])));
         
+        //[2026.03.21 추가] 3. 이전 대화 기록 불러오기 (id와 created_at 추가)
+        const historyRows = await new Promise((resolve) => db.all("SELECT id, role, content, created_at FROM messages WHERE session_id = ? ORDER BY created_at ASC", [sessionId], (err, r) => resolve(r||[])));
+        
+        let contents = [];
+
+        // 🚀 [추가됨] 10개 초과 시 Flash-Lite로 요약 후 DB 최적화 (토큰 절약 & UI 반영)
+        const MAX_HISTORY = 10;
+        if (historyRows.length > MAX_HISTORY) {
+            const oldMsgs = historyRows.slice(0, historyRows.length - MAX_HISTORY);
+            
+            // 이미 요약된 내용이 또 요약되는 것을 방지
+            const isAlreadySummarized = oldMsgs.some(m => m.content && m.content.includes('system-summary-msg'));
+            
+            if (!isAlreadySummarized) {
+                const summaryText = oldMsgs.map(m => `[${m.role}] ${m.content}`).join('\n');
+                
+                //[2026.03.23 수정] ai.getGenerativeModel 대신 ai.models.generateContent 사용
+                const sumRes = await ai.models.generateContent({
+                    model: 'gemini-3.1-flash-lite-preview',
+                    contents: [{ 
+                        role: 'user', 
+                        parts: [{ 
+                            text: `다음 과거 대화들을 맥락이 유지되게 3~4줄로 요약해. HTML <div class="system-summary-msg">💡 <b>[이전 대화 요약]</b><br>내용</div> 형태로만 출력해:\n\n${summaryText}` 
+                        }] 
+                    }],
+                    config: { maxOutputTokens: 300 }
+                });
+                const summaryContent = sumRes.text ? sumRes.text.trim() : "";
+
+                // DB에서 오래된 메시지 삭제 및 요약본 삽입
+                const idsToDelete = oldMsgs.map(m => m.id);
+                const ph = idsToDelete.map(()=>'?').join(',');
+                await new Promise(res => db.run(`DELETE FROM messages WHERE id IN (${ph})`, idsToDelete, res));
+                
+                // FTS 인덱스에서도 삭제 (검색 찌꺼기 방지)
+                await new Promise(res => db.run(`DELETE FROM messages_fts WHERE rowid IN (${ph})`, idsToDelete, res));
+                
+                const summaryTime = oldMsgs[oldMsgs.length - 1].created_at;
+                await new Promise(res => db.run(
+                    "INSERT INTO messages (session_id, role, content, created_at) VALUES (?, 'model', ?, ?)", 
+                    [sessionId, summaryContent, summaryTime], res
+                ));
+                
+                // 현재 세션 배열 갱신 (오래된 것들을 요약본 1개로 대체)
+                historyRows.splice(0, oldMsgs.length, { role: 'model', content: summaryContent });
+            }
+        }
+
         // Custom 모드 페르소나 고정 로직
         if (modeName === 'custom') {
             let personaDefinition = message; 
@@ -628,7 +690,6 @@ app.post('/api/chat', isAuthenticated, upload.array('files'), async (req, res) =
 
         const sessionData = await new Promise((resolve) => db.get("SELECT summary, title FROM sessions WHERE id = ?", [sessionId], (err, r) => resolve(r)));
         let userMemory = await getUserMemory(userId);
-        let contents = [];
 
         // 히스토리 주입
         historyRows.forEach(msg => {
@@ -662,49 +723,103 @@ app.post('/api/chat', isAuthenticated, upload.array('files'), async (req, res) =
         const now = new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' });
         const finalInstruction = `${baseInstruction}\n\n[Context Info]\nTime: ${now}\n[User Profile]: ${userMemory || "None"}`;
 
+        const configObj = { 
+            systemInstruction: finalInstruction,
+            tools: [{ googleSearch: {} }]
+            //maxOutputTokens: 8192 // [2026.03.22 추가] 1회 답변당 최대 출력 토큰 수 제한 (서비스 지장 없는 넉넉한 수준, 비용 폭탄 완벽 방지)
+        };
+
+        // [2026.03.22 안전망 추가] 서버 측에서도 지원 가능한 모델만 엄격하게 필터링
+        const THINKING_SUPPORTED = ['gemini-3.1-pro-preview', 'gemini-3.1-pro'];
+
+        if (THINKING_SUPPORTED.includes(targetEngine) && thinkingLevel && thinkingLevel !== 'none') {
+             
+            // 관리자이거나 추론 권한이 있는 경우만 적용
+            if (req.session.role === 'admin' || req.session.allowThinking) {
+                configObj.thinkingConfig = {
+                    thinkingLevel: thinkingLevel, 
+                    includeThoughts: true   
+                };
+            }
+        }
+
+        // [2026.03.21 동적 추론 설정] 화면에서 선택한 값이 있고, 권한이 확인된 경우에만 활성화
+        if ((targetEngine === 'gemini-3.1-pro-preview' || targetEngine === 'gemini-3.1-pro') && 
+             thinkingLevel && thinkingLevel !== 'none') {
+             
+            // 관리자이거나 추론 권한이 있는 경우만 적용
+            if (req.session.role === 'admin' || req.session.allowThinking) {
+                configObj.thinkingConfig = {
+                    thinkingLevel: thinkingLevel, // 'LOW', 'MEDIUM', 'HIGH'
+                    includeThoughts: true   
+                };
+            }
+        }
+
         const response = await ai.models.generateContent({
             model: targetEngine,
-            config: { 
-                systemInstruction: finalInstruction,
-                tools: [{ googleSearch: {} }]
-            },
+            config: configObj,
             contents: contents 
         });
 
-        // ▼▼▼ [여기에 딱 3줄 추가!!] ▼▼▼
         if (response.usageMetadata) {
             await trackUsage(userId, targetEngine, response.usageMetadata, false);
         }
-        // ▲▲▲ [추가 완료] ▲▲▲
 
-        // 응답 처리 (코드 실행 결과 포함)
+        // 🚀 [추가됨] 응답 처리 (추론 과정 추출 포함)
         let responseText = "";
+        let thoughtText = ""; // 🤔 추론 과정 임시 저장
+
         const candidate = response.candidates && response.candidates[0];
         if (candidate && candidate.content && candidate.content.parts) {
             for (const part of candidate.content.parts) {
-                if (part.text) responseText += part.text;
-                else if (part.executableCode) responseText += `\n\n**[Code Executed]**\n\`\`\`python\n${part.executableCode.code}\n\`\`\`\n`;
-                else if (part.codeExecutionResult) responseText += `\n> **Output:** \`${part.codeExecutionResult.output?.trim()}\`\n\n`;
+                if (part.text) {
+                    responseText += part.text;
+                } else if (part.thought) { 
+                    // 추론 과정을 접었다 펼칠 수 있는 마크다운 형태로 저장
+                    thoughtText += `<details class="thinking-process"><summary>🧠 AssistBerry Thinking...</summary>\n\n${part.text}\n\n</details>\n\n`;
+                } else if (part.executableCode) {
+                    responseText += `\n\n**[Code Executed]**\n\`\`\`python\n${part.executableCode.code}\n\`\`\`\n`;
+                } else if (part.codeExecutionResult) {
+                    responseText += `\n> **Output:** \`${part.codeExecutionResult.output?.trim()}\`\n\n`;
+                }
             }
         } else if (typeof response.text === 'function') {
             responseText = response.text();
         }
 
+        // 최종 답변 텍스트 맨 앞에 추론 과정을 합치기
+        if (thoughtText) {
+            responseText = thoughtText + responseText;
+        }
+
         if (!responseText) responseText = "⚠️ 응답을 불러오지 못했습니다.";
 
         await saveMessage(sessionId, 'model', responseText, isAdminUser);
-        updateUserMemory(userId, dbContent, responseText);
 
+        // 🚀 [추가됨] 사용자 프로필 디바운싱 (매 5턴마다 1번만 업데이트)
+        // 기존: updateUserMemory(userId, dbContent, responseText);
+        // 변경: user 메시지 개수를 세어서 5의 배수일 때만 비동기 실행
+        const userMsgCount = historyRows.filter(m => m.role === 'user').length + 1; // 이번 턴 포함
+        if (userMsgCount % 5 === 0) {
+            // await 없이 던져서 응답 속도 저하 방지
+            updateUserMemory(userId, dbContent, responseText).catch(console.error);
+        }
+        //[2026.03.21 추가 끝]
+        
         // 제목 자동 생성 로직 (New Analysis일 때만)
         if (sessionData && sessionData.title === 'New Analysis') {
             try {
                 let summaryInput = message || "";
                 if (summaryInput.length > 500) summaryInput = summaryInput.substring(0, 500);
 
-                const titleModel = ai.getGenerativeModel({ model: 'gemini-3.1-flash-lite' });
                 const titlePrompt = `Summarize into a concise title (Korean, Max 15 chars). No quotes.\nText: ${summaryInput}`;
-                const titleRes = await titleModel.generateContent(titlePrompt);
-                let newTitle = titleRes.response.text().trim().replace(/["'*]/g, "");
+                const titleRes = await ai.models.generateContent({
+                    model: 'gemini-3.1-flash-lite-preview',
+                    contents: titlePrompt,
+                    config: { maxOutputTokens: 50 }
+                });
+                let newTitle = titleRes.text ? titleRes.text.trim().replace(/["'*]/g, "") : "";
 
                 if (!newTitle) {
                      if (files.length > 0 && summaryInput.trim() === "") newTitle = "이미지 분석";
@@ -827,11 +942,51 @@ db.run("ALTER TABLE users ADD COLUMN monthly_cost REAL DEFAULT 0.0", (err) => {
 db.run("ALTER TABLE users ADD COLUMN total_cost REAL DEFAULT 0.0", (err) => {
     if (!err) console.log("✅ DB 업데이트 완료: total_cost 컬럼 추가됨");
 });
-// ▲▲▲ [추가] 여기까지 ▲▲▲
-
+// ▼▼▼ [2026.03.21 추가] 추론 권한 컬럼 ▼▼▼
+db.run("ALTER TABLE users ADD COLUMN allow_thinking INTEGER DEFAULT 0", (err) => {
+    if (!err) console.log("✅ DB 업데이트 완료: allow_thinking 컬럼 추가됨");
+});
 // [2026.03.17 추가] 수정 (바로 위에 DB 업데이트 로직 추가)
 db.run("ALTER TABLE users ADD COLUMN allow_flash INTEGER DEFAULT 0", (err) => {
     if (!err) console.log("✅ DB 업데이트 완료: allow_flash 컬럼 추가됨");
 });
+
+// ▼▼▼ [2026.03.23 수정] 공지사항 및 릴리즈 노트 API ▼▼▼
+const APP_NOTICES = [
+    {
+        version: "v1.3.0",
+        date: "2026.03.23",
+        title: "📖 사용자 매뉴얼 도입 및 토큰 최적화",
+        updates: [
+            "첫 접속 사용자를 위한 가이드(사용자 매뉴얼) 기능 추가",
+            "대화 10턴 초과 시 자동 요약 알고리즘 적용: 과거 10개의 대화만 API로 전송하고 이전 대화는 한 줄로 요약하여 토큰 비용 획기적 절감",
+            "UI/UX 접근성 강화를 위한 사이드바 메뉴 개편"
+        ]
+    },
+    {
+        version: "v1.2.0",
+        date: "2026.03.22",
+        title: "🧠 추론(Thinking) 모델 도입 및 UI 개선",
+        updates: [
+            "채팅창 UI 개선: 긴 프롬프트 자동 접기 및 펼치기 기능 추가",
+            "Flash 모델 선택 시 눈부심 완화 테마 적용",
+            "과거 대화 날짜(MM.DD) 표시 추가 및 자동 제목 생성 최적화"
+        ]
+    },
+    {
+        version: "v1.1.0",
+        date: "2026.03.21",
+        title: "🍌 바나나 모드 및 기타 개선",
+        updates: [
+            "나노바나나(이미지 생성) 모드에 첨부파일 전송 기능 통합",
+            "1개월 경과 세션 자동 정리 팝업 기능 추가"
+        ]
+    }
+];
+
+app.get('/api/notices', isAuthenticated, (req, res) => {
+    res.json(APP_NOTICES);
+});
+// ▲▲▲ [수정 완료] ▲▲▲
 
 app.listen(PORT, () => { console.log(`Server started on http://localhost:${PORT}`); });

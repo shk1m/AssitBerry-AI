@@ -20,6 +20,7 @@ db.serialize(() => {
         allow_pro INTEGER DEFAULT 0,
         allow_image INTEGER DEFAULT 0,  -- 여기 나노바나나 추가!
         allow_flash INTEGER DEFAULT 0,  -- 플래시 권한 추가
+        allow_thinking INTEGER DEFAULT 0, -- [2026.03.21 추가] 추론(Thinking) 권한 추가
         monthly_cost REAL DEFAULT 0.0,  -- 🔥 [추가] 이번 달 비용
         total_cost REAL DEFAULT 0.0,    -- 🔥 [추가] 누적 총 비용
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
@@ -68,6 +69,14 @@ db.serialize(() => {
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
     )`);
+
+    // 🚀 [여기서부터 추가] 기존 DB 파일에 누락된 컬럼을 강제로 밀어넣는 업데이트 로직
+    db.run("ALTER TABLE users ADD COLUMN allow_thinking INTEGER DEFAULT 0", (err) => {
+        if (!err) {
+            console.log("✅ [DB 업데이트] 기존 유저 테이블에 allow_thinking 컬럼 추가 완료!");
+        }
+    });
+    // 🚀 [추가 끝]
 
 });
 

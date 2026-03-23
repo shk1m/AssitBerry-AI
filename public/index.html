@@ -261,6 +261,8 @@
         }
         .usage-meter strong { color: var(--accent-primary); letter-spacing: 0.5px; }
         .usage-meter .sep { color: rgba(255,255,255,0.1); }
+
+    
         /* [2026.03.17 추가] 커피 문구 애니메이션 추가 */
         .coffee-link {
             animation: pulse 2s infinite;
@@ -716,25 +718,21 @@
         }
         /* ▲▲▲ [복붙] 여기까지 ▲▲▲ */
 
-        /* ▼▼▼ [2026.03.17 추가] 플래시 모드 (초록색 띠) ▼▼▼ */
+        /* ▼▼▼ [수정됨] 플래시 모드 (배경 유지, 포인트 색상만 변경) ▼▼▼ */
         body.flash-mode {
-            --bg-gradient: linear-gradient(135deg, #051a0d 0%, #0a2e17 100%);
-            --sidebar-glass: rgba(5, 26, 13, 0.85);
-            --header-glass: rgba(0, 255, 128, 0.05);
             --accent-primary: #20c997;
             --accent-gradient: linear-gradient(135deg, #20c997 0%, #63e6be 100%);
-            --text-primary: #e6fcf5;
         }
         body.flash-mode .input-wrapper {
-            border: 2px solid #20c997 !important;
-            box-shadow: 0 0 30px rgba(32, 201, 151, 0.3), inset 0 0 15px rgba(32, 201, 151, 0.1) !important;
-            background: rgba(10, 40, 20, 0.9) !important;
+            border: 1px solid #20c997 !important;
+            box-shadow: 0 0 15px rgba(32, 201, 151, 0.2), inset 0 0 10px rgba(32, 201, 151, 0.05) !important;
         }
         body.flash-mode #send-btn {
-            background: linear-gradient(135deg, #20c997 0%, #38d9a9 100%) !important;
+            background: var(--accent-gradient) !important;
             color: #000 !important;
-            box-shadow: 0 0 15px rgba(32, 201, 151, 0.5) !important;
+            box-shadow: 0 0 10px rgba(32, 201, 151, 0.4) !important;
         }
+        /* ▲▲▲ [수정 완료] ▲▲▲ */
         /* ▲▲▲ [추가] 여기까지 ▲▲▲ */
 
         /* ▼▼▼ [추가] 미니 파일 미리보기 스타일 ▼▼▼ */
@@ -800,6 +798,96 @@
             border-radius: 0 0 4px 4px;
         }
         /* ▲▲▲ [추가] 여기까지 ▲▲▲ */
+
+        /* ▲▲▲ [2026.03.21 추가] 프롬프트 개선 스타일 여기까지 ▲▲▲ */
+        /* =========================================
+           ✨ AI Thinking & Summary UI (New)
+           ========================================= */
+        
+        /* 1. 이전 대화 요약 배지 (Flash-Lite가 요약한 내용) */
+        .system-summary-msg {
+            background: rgba(92, 124, 250, 0.1);
+            border-left: 4px solid var(--accent-primary);
+            padding: 14px 18px;
+            border-radius: 0 12px 12px 0;
+            font-size: 0.95rem;
+            color: var(--text-secondary);
+            margin: 15px 0 25px 0;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            line-height: 1.6;
+            word-break: keep-all;
+        }
+        .system-summary-msg b { 
+            color: var(--text-primary); 
+            font-size: 1rem;
+            display: inline-block;
+            margin-bottom: 6px;
+        }
+
+        /* 2. Pro 모델 추론 과정 (접기/펼치기) */
+        .thinking-process {
+            background: rgba(20, 22, 28, 0.7);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 12px;
+            padding: 12px 16px;
+            margin-bottom: 20px;
+            color: #aeb5bc;
+            font-size: 0.9rem;
+            line-height: 1.6;
+            transition: all 0.3s ease;
+        }
+        .thinking-process:hover { 
+            border-color: rgba(92, 124, 250, 0.4); 
+            background: rgba(30, 32, 40, 0.8);
+        }
+        
+        .thinking-process summary {
+            cursor: pointer;
+            font-weight: 700;
+            color: var(--accent-primary);
+            outline: none;
+            user-select: none;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            list-style: none; /* 기본 화살표 숨김 */
+            padding: 4px 0;
+        }
+        .thinking-process summary::-webkit-details-marker { display: none; }
+        
+        /* 열렸을 때 스타일 변화 */
+        .thinking-process[open] summary {
+            margin-bottom: 12px;
+            color: white;
+            border-bottom: 1px dashed rgba(255, 255, 255, 0.2);
+            padding-bottom: 12px;
+        }
+
+        /* ▼▼▼ 릴리즈 노트(공지사항) 모달 스타일 ▼▼▼ */
+        #notice-modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.75); backdrop-filter: blur(8px);
+            z-index: 9999; display: none; justify-content: center; align-items: center;
+        }
+        .notice-modal-box {
+            background: rgba(30, 32, 40, 0.95); border: 1px solid var(--border-subtle);
+            border-radius: 20px; padding: 30px 20px 20px; width: 90%; max-width: 500px; max-height: 80vh;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.6); display: flex; flex-direction: column;
+            animation: popIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+        }
+        .notice-header { text-align: center; margin-bottom: 20px; }
+        .notice-header h2 { margin: 0; color: white; display: flex; align-items: center; justify-content: center; gap: 10px; }
+        .notice-list { flex: 1; overflow-y: auto; padding-right: 10px; }
+        .notice-card {
+            background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.05);
+            border-radius: 12px; padding: 16px; margin-bottom: 15px; text-align: left;
+        }
+        .notice-version { display: inline-block; background: var(--accent-gradient); color: white; padding: 3px 8px; border-radius: 6px; font-size: 0.75rem; font-weight: bold; margin-bottom: 8px; }
+        .notice-date { color: var(--text-dim); font-size: 0.8rem; margin-left: 8px; }
+        .notice-title { color: var(--text-primary); font-size: 1.05rem; font-weight: bold; margin: 0 0 10px 0; }
+        .notice-ul { margin: 0; padding-left: 20px; color: var(--text-secondary); font-size: 0.9rem; line-height: 1.6; }
+        .notice-ul li { margin-bottom: 6px; }
+        .notice-ul li::marker { color: var(--accent-primary); }
 
     </style>
 </head>
@@ -890,6 +978,12 @@
             <div id="session-list"></div>
             
             <div class="sidebar-footer">
+                <button class="admin-btn" onclick="openManualModal()" style="background:rgba(81, 207, 102, 0.1); color:#51cf66; border-color:rgba(81, 207, 102, 0.2); margin-bottom:10px;">
+                    📖 사용자 매뉴얼
+                </button>
+                <button class="admin-btn" onclick="openNoticeModal(false)" style="background:rgba(92, 124, 250, 0.1); color:var(--accent-primary); border-color:rgba(92, 124, 250, 0.2); margin-bottom:10px;">
+                    📢 업데이트 노트
+                </button>
                 <button class="admin-btn" onclick="clearAllSessions()" style="background:rgba(255, 107, 107, 0.1); color:#ff8787; border-color:rgba(255, 107, 107, 0.2); margin-bottom:10px;">
                     🗑️ Clear All History
                 </button>
@@ -899,6 +993,12 @@
                     <option value="gemini-3.1-flash-lite" selected>⚡ Gemini 3.1 Flash Lite (Speed)</option>
                     <option value="gemini-3-flash">🌿 Gemini 3.0 Flash (Expert)</option>
                     <option value="gemini-3.1-pro">🧠 Gemini 3.1 Pro (Pro)</option>
+                </select>
+
+                <select id="thinking-select" style="display:none; width: 100%; padding: 10px 12px; background: rgba(0,0,0,0.3); border: 1px dashed var(--accent-primary); color: var(--accent-primary); border-radius: 8px; outline: none; margin-bottom: 10px; cursor: pointer; font-weight: 600; font-size: 0.85rem;">
+                    <option value="none" selected>⚡ 기본 답변</option>
+                    <option value="MEDIUM">🤔 추론: MEDIUM (심도 있는 분석)</option>
+                    <option value="HIGH">🧠 추론: HIGH (최고 수준의 논리 해결 / 고비용)</option>
                 </select>
 
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-top:10px;">
@@ -1004,6 +1104,78 @@
         </div>
     </div>
     <div id="toast-container"></div>
+
+    <div id="notice-modal-overlay">
+        <div class="notice-modal-box">
+            <div class="notice-header">
+                <h2>✨ What's New</h2>
+                <span style="color:var(--text-dim); font-size:0.85rem;">새로운 기능과 개선사항을 확인하세요!</span>
+                <div style="margin-top: 10px; font-size: 0.85rem; color: var(--accent-primary); font-weight: 600;">
+                    💡 좌측 하단 메뉴에서 언제든 다시 확인할 수 있습니다.
+                </div>
+            </div>
+            <div class="notice-list" id="notice-list-container">
+                </div>
+            <button onclick="document.getElementById('notice-modal-overlay').style.display='none'" class="modal-btn btn-confirm" style="margin-top:20px; padding:14px;">
+                확인 (Close)
+            </button>
+        </div>
+    </div>
+    
+    <div id="manual-modal-overlay" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.8); backdrop-filter: blur(8px); z-index: 9999; display: none; justify-content: center; align-items: center;">
+        <div class="notice-modal-box" style="max-width: 600px; max-height: 85vh;">
+            <div class="notice-header">
+                <h2>📖 AssistBerry 사용 가이드</h2>
+                <span style="color:var(--text-dim); font-size:0.85rem;">AssistBerry를 활용하는 방법 5가지</span>
+                <div style="margin-top: 10px; font-size: 0.85rem; color: var(--accent-primary); font-weight: 600;">
+                    💡 좌측 하단 메뉴에서 언제든 다시 확인할 수 있습니다.
+                </div>
+            </div>
+            <div class="notice-list" style="padding-right: 15px;">
+                <div class="notice-card">
+                    <h4 class="notice-title">🤖 1. 페르소나 모드 (Mode)</h4>
+                    <ul class="notice-ul">
+                        <li><b>General:</b> 일상 대화, 일반 상식, 친절한 비서 모드</li>
+                        <li><b>Tech:</b> 데이터 엔지니어 관점의 코드 작성 및 트러블슈팅 전문</li>
+                        <li><b>Biz:</b> 비즈니스에 최적화, 기획서/보고서 작성 전문</li>
+                        <li><b>Custom:</b> 첫 메시지로 AI의 역할을 직접 부여 (예: "너는 이제부터 번역가야")</li>
+                    </ul>
+                </div>
+                <div class="notice-card">
+                    <h4 class="notice-title">🧠 2. 모델 및 추론 (Thinking)</h4>
+                    <ul class="notice-ul">
+                        <li><b>Lite:</b> 가장 빠르고 좋은 품질을 보장하는 기본 모델입니다.</li>
+                        <li><b>Flash 모델:</b> 문서 요약, 코드 분석 등 한층 더 똑똑하고 복잡한 업무 처리에 적합한 고성능 모델입니다.(필요 시 관리자 요청)</li>
+                        <li><b>나노바나나:</b> 이미지는 생성하는 모델입니다.(바나나 버튼 클릭)</li>
+                    </ul>
+                </div>
+                <div class="notice-card">
+                    <h4 class="notice-title">💰 3. 자동 토큰 최적화 시스템</h4>
+                    <ul class="notice-ul">
+                        <li>채팅이 길어지면 토큰(비용)이 폭발적으로 늘어나는 것을 방지하기 위해 <b>'10턴 자동 요약'</b>이 작동합니다.</li>
+                        <li>최근 10개의 대화만 원본으로 유지하고, 그 이전 대화는 AI가 한 줄로 요약하여 문맥을 기억한 채 비용을 획기적으로 절약합니다. (화면에 요약 알림 배지 표시)</li>
+                    </ul>
+                </div>
+                <div class="notice-card">
+                    <h4 class="notice-title">🍌 4. 나노바나나 (이미지 생성)</h4>
+                    <ul class="notice-ul">
+                        <li>입력창 좌측의 <b>[🍌]</b> 아이콘을 누르면 이미지 생성 모드로 전환됩니다.</li>
+                        <li>원하는 이미지를 텍스트로 묘사하거나, <b>참조 이미지를 첨부(📎)</b>하여 프롬프트를 입력해 보세요.</li>
+                    </ul>
+                </div>
+                <div class="notice-card">
+                    <h4 class="notice-title">💡 5. 유용한 단축키 & 꿀팁</h4>
+                    <ul class="notice-ul">
+                        <li><b>슬래시 명령어:</b> 입력창에 <code>/</code>를 입력하면 빠른 커스텀 전문가 모드(네트워크 담당자 등)를 불러올 수 있습니다.(추가 희망: 관리자에게 요청)</li>
+                        <li><b>문서 추출:</b> AI가 쓴 답변 아래의 <code>[W]</code> 아이콘을 누르면 즉시 Word 파일로 깔끔하게 변환되어 다운로드됩니다.</li>
+                    </ul>
+                </div>
+            </div>
+            <button onclick="document.getElementById('manual-modal-overlay').style.display='none'; openNoticeModal(true);" class="modal-btn btn-confirm" style="margin-top:20px; padding:14px; font-size: 1.05rem;">
+                확인하고 시작하기
+            </button>
+        </div>
+    </div>
 
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
@@ -1195,12 +1367,25 @@
                 flashOpts.forEach(opt => { opt.disabled = true; opt.innerText += " (Locked)"; });
             }
 
-            // 모델 변경 시 테마 전환 이벤트 등록 (한 번만 등록되도록 밖으로 빼도 되지만, initApp 안에 넣어도 무방합니다)
+            // [2026.03.22 추가] 지원되는 모델을 배열로 관리 (나중에 flash-thinking 등이 나오면 여기에 추가만 하면 됨)
+            const thinkingSupportedModels = ['gemini-3.1-pro', 'gemini-3.1-pro-preview']; 
+            
+            const thinkingSelect = document.getElementById('thinking-select');
+
             modelSelect.addEventListener('change', function(e) {
                 if (e.target.value === 'gemini-3-flash') {
                     document.body.classList.add('flash-mode');
                 } else {
                     document.body.classList.remove('flash-mode');
+                }
+
+                // 🔥 배열에 포함된 모델이고, 추론 권한이 있을 때만 셀렉트 박스 노출
+                if (thinkingSupportedModels.includes(e.target.value) && 
+                   (currentUser.allowThinking || currentUser.role === 'admin')) {
+                    thinkingSelect.style.display = 'block';
+                } else {
+                    thinkingSelect.style.display = 'none';
+                    thinkingSelect.value = 'none'; // 지원 안 하는 모델로 바꾸면 안전하게 권한 회수
                 }
             });
 
@@ -1211,8 +1396,24 @@
                     const first = document.querySelector('.session-item');
                     if(first) loadMessages(first.getAttribute('data-id'));
                 }
-                // ▼▼▼ [추가] 로그인 1.5초 뒤에 정리 팝업 체크 ▼▼▼
-                setTimeout(checkExpiredSessions, 1500);
+
+                // [2026.03.21 새로운 코드 - 이걸 붙여넣으세요]
+                // 팝업 로직: 최초 사용자(매뉴얼) -> 기존 사용자(업데이트 노트) -> 세션 정리 알림
+                setTimeout(() => {
+                    const hasSeenManual = localStorage.getItem('assistBerry_hasSeenManual');
+                    if (!hasSeenManual) {
+                        // 1. 아예 처음 온 사람이면 매뉴얼을 띄워줌
+                        openManualModal();
+                        localStorage.setItem('assistBerry_hasSeenManual', 'true');
+                        // 매뉴얼 닫을 때쯤 뒤이어 세션 체크
+                        setTimeout(checkExpiredSessions, 10000); 
+                    } else {
+                        // 2. 이미 매뉴얼을 본 사람은 새로운 업데이트가 있는지 체크
+                        openNoticeModal(true);
+                        // 세션 체크
+                        setTimeout(checkExpiredSessions, 2000);
+                    }
+                }, 1000);
             });
             fetchUsage();
         }
@@ -1281,7 +1482,26 @@
                             const div = document.createElement('div');
                             div.className = `session-item ${s.id == currentSessionId ? 'active' : ''}`;
                             div.setAttribute('data-id', s.id);
-                            div.innerHTML = `<span class="session-title">${s.title}</span><button class="delete-btn">×</button>`;
+                            
+                            // 🚀 [추가됨] UTC 시간을 한국 시간으로 변환 후 예쁘게 포맷팅 (MM.DD)
+                            let dateStr = "";
+                            if(s.created_at) {
+                                // SQLite 시간 문자열 뒤에 'Z'를 붙여 UTC로 인식하게 만듦
+                                const d = new Date(s.created_at.replace(' ', 'T') + 'Z');
+                                const m = String(d.getMonth() + 1).padStart(2, '0');
+                                const day = String(d.getDate()).padStart(2, '0');
+                                dateStr = `${m}.${day}`;
+                            }
+
+                            // 제목 아래에 날짜가 작게 표시되도록 UI 개선
+                            div.innerHTML = `
+                                <div style="display:flex; flex-direction:column; flex:1; min-width:0;">
+                                    <span class="session-title">${s.title}</span>
+                                    <span style="font-size:0.7rem; color:var(--text-dim); margin-top:2px;">${dateStr}</span>
+                                </div>
+                                <button class="delete-btn">×</button>
+                            `;
+                            
                             div.querySelector('.delete-btn').onclick = (e) => { e.stopPropagation(); deleteSession(s.id); };
                             div.onclick = () => { loadMessages(s.id); if(isMobile()) toggleSidebar(); };
                             list.appendChild(div);
@@ -1567,6 +1787,8 @@
                     formData.append('message', msg); // 텍스트
                     formData.append('modelName', document.getElementById('model-select').value);
                     formData.append('modeName', document.getElementById('mode-select').value);
+                    //[2026.03.21 추가]
+                    formData.append('thinkingLevel', document.getElementById('thinking-select') ? document.getElementById('thinking-select').value : 'none');
                     
                     // 파일 추가 (upload.array('files')와 매칭)
                     filesToSend.forEach(file => {
@@ -1585,9 +1807,13 @@
                 
                 // ▼▼▼ [추가] 첫 번째 대화였다면 사이드바 제목 갱신을 위해 목록 다시 불러오기 ▼▼▼
                 // (현재 메시지가 2개(질문+답변) 이하라면 첫 대화로 간주)
+                // ▼▼▼ [수정] 제목이 DB에 저장될 시간을 벌어줌 (0.5초 -> 1.5초 딜레이) ▼▼▼
                 if (chatContainer.children.length <= 2) {
-                    loadSessions(); 
+                    setTimeout(() => {
+                        loadSessions(); 
+                    }, 1500); // API 응답 속도를 고려해 1.5초로 넉넉하게 변경
                 }
+                // ▲▲▲ [수정] 여기까지 ▲▲▲
                 // ▲▲▲ [추가] 여기까지 ▲▲▲
                 // ▼▼▼ [추가] 메시지 전송 후 비용 실시간 갱신
                 fetchUsage();
@@ -1688,11 +1914,8 @@
             }
             // ▲▲▲ [추가] 여기까지 ▲▲▲
             
-            div.appendChild(contentDiv);        // <--- 기존 코드
-            chatContainer.appendChild(div);     // <--- 기존 코드
-
-            div.appendChild(contentDiv);
-            chatContainer.appendChild(div);
+            div.appendChild(contentDiv);      
+            chatContainer.appendChild(div);     
             
             const renderMarkdown = () => {
                 contentDiv.innerHTML = marked.parse(content);
@@ -1835,30 +2058,32 @@
                     ? `<span style="font-size:1.2rem; margin-left:8px;" title="Image Gen ON">🍌</span>`
                     : `<span style="font-size:1.2rem; margin-left:8px; opacity:0.1; filter:grayscale(100%);" title="Image Gen OFF">🍌</span>`;
 
-                // [2026.03.17 추가] 아래에 추가
+                //[2026.03.21 추가]
                 // (2.5) Flash 배지
                 const flashBadge = (u.allow_flash || isAdmin)
                     ? `<span style="color:#20c997; font-weight:800; margin-left:8px;">FLASH</span>` 
                     : `<span style="color:#868e96; font-size:0.9rem; margin-left:8px;">FLASH</span>`;
 
+                // 🚀 [추가됨] (2.8) Thinking 배지
+                const thinkBadge = (u.allow_thinking || isAdmin)
+                    ? `<span style="color:#fcc419; font-weight:800; margin-left:8px;" title="Thinking Allowed">THINK</span>` 
+                    : `<span style="color:#868e96; font-size:0.9rem; margin-left:8px;">THINK</span>`;
+
                 // (3) 바나나 버튼 로직 (관리자는 버튼 비활성화)
                 let bananaBtn;
                 if (isAdmin) {
-                    // 관리자용 버튼 (클릭 불가, 항상 노란색)
                     bananaBtn = `<button class="action-btn" style="background:#fab005; color:#000; font-weight:bold; cursor:default; opacity:0.7;" title="Admin Always ON">🔒</button>`;
                 } else {
-                    // 일반 유저용 버튼 (토글 가능)
-                    // 여기서 allow_image가 undefined일 경우 0으로 처리
                     const currentVal = u.allow_image ? 1 : 0;
                     const nextVal = currentVal === 1 ? 0 : 1; 
                     const btnColor = currentVal === 1 ? '#fab005' : 'rgba(255,255,255,0.1)';
                     const txtColor = currentVal === 1 ? '#000' : '#888';
                     
-                // [2026.03.17 추가] 수정 (파라미터 맨 끝에 u.allow_flash 추가)
-                    bananaBtn = `<button class="action-btn" onclick="updateUser(${u.id},${u.is_approved},${u.allow_pro},${nextVal},${u.allow_flash})" style="background:${btnColor}; color:${txtColor}; font-weight:bold;">🍌</button>`;
+                    // 🔥 바나나 버튼에도 6번째 파라미터(allow_thinking) 추가
+                    bananaBtn = `<button class="action-btn" onclick="updateUser(${u.id},${u.is_approved},${u.allow_pro},${nextVal},${u.allow_flash},${u.allow_thinking})" style="background:${btnColor}; color:${txtColor}; font-weight:bold;">🍌</button>`;
                 }
 
-                // [2026.03.17 추가] 통째로 덮어쓰기 (주석 제거 및 HTML 구조 복구)
+                // 🚀 [수정됨] <tr> 내부 렌더링 (Think 배지 & 모든 버튼에 6번째 파라미터 적용)
                 tr.innerHTML = `
                     <td style="font-weight:bold; color:white;">
                         ${u.username} ${isAdmin ? '👑' : ''}
@@ -1866,10 +2091,9 @@
                     <td><span style="color:${u.is_approved?'var(--success)':'var(--error)'}">${u.is_approved?'Active':'Wait'}</span></td>
                     <td>
                         <div style="display:flex; align-items:center;">
-                            ${proBadge} 
-                            <span style="color:rgba(255,255,255,0.1); margin:0 8px;">|</span> 
-                            ${flashBadge}
-                            <span style="color:rgba(255,255,255,0.1); margin:0 8px;">|</span> 
+                            ${proBadge} <span style="color:rgba(255,255,255,0.1); margin:0 4px;">|</span> 
+                            ${flashBadge} <span style="color:rgba(255,255,255,0.1); margin:0 4px;">|</span> 
+                            ${thinkBadge} <span style="color:rgba(255,255,255,0.1); margin:0 4px;">|</span> 
                             ${bananaBadge}
                         </div>
                     </td>
@@ -1878,16 +2102,16 @@
                         <span style="color:var(--text-dim);" title="누적 비용">$${(u.total_cost || 0).toFixed(4)}</span>
                     </td>
                     <td>
-                        <button class="action-btn" onclick="updateUser(${u.id},1,${u.allow_pro},${u.allow_image},${u.allow_flash})" style="background:#51cf66; color:#fff;">OK</button>
-                        <button class="action-btn" onclick="updateUser(${u.id},${u.is_approved},${u.allow_pro?0:1},${u.allow_image},${u.allow_flash})" style="background:${u.allow_pro?'#1c7ed6':'#339af0'}; color:#fff;">Pro</button>
-                        <button class="action-btn" onclick="updateUser(${u.id},${u.is_approved},${u.allow_pro},${u.allow_image},${u.allow_flash?0:1})" style="background:${u.allow_flash?'#099268':'#20c997'}; color:#fff;">Flash</button>
+                        <button class="action-btn" onclick="updateUser(${u.id},1,${u.allow_pro},${u.allow_image},${u.allow_flash},${u.allow_thinking})" style="background:#51cf66; color:#fff;">OK</button>
+                        <button class="action-btn" onclick="updateUser(${u.id},${u.is_approved},${u.allow_pro?0:1},${u.allow_image},${u.allow_flash},${u.allow_thinking})" style="background:${u.allow_pro?'#1c7ed6':'#339af0'}; color:#fff;">Pro</button>
+                        <button class="action-btn" onclick="updateUser(${u.id},${u.is_approved},${u.allow_pro},${u.allow_image},${u.allow_flash?0:1},${u.allow_thinking})" style="background:${u.allow_flash?'#099268':'#20c997'}; color:#fff;">Flash</button>
+                        <button class="action-btn" onclick="updateUser(${u.id},${u.is_approved},${u.allow_pro},${u.allow_image},${u.allow_flash},${u.allow_thinking?0:1})" style="background:${u.allow_thinking?'#e67700':'#fcc419'}; color:#fff;">Think</button>
                         ${bananaBtn}
                         <button class="action-btn delete-user-btn" onclick="deleteUser(${u.id})">Del</button>
                     </td>`;
 
-
-
                 tbody.appendChild(tr);
+                
             });
         }
         // ▲▲▲ [교체] 여기까지 ▲▲▲
@@ -1944,9 +2168,10 @@
 
         // [2026.03.17 추가] 수정
         // ▼▼▼ [수정됨] updateUser 함수 ▼▼▼
-        async function updateUser(id, a, p, i, f) { // 🔥 f(allow_flash) 추가
+        async function updateUser(id, a, p, i, f, t) { // 🔥 f(allow_flash) 추가
             if (i === undefined || i === null) i = 0;
             if (f === undefined || f === null) f = 0; // 🔥 추가
+            if (t === undefined || t === null) t = 0; // 2026.03.21 추론 권한 추가
 
             await fetch('/api/admin/update', {
                 method: 'POST', 
@@ -1956,7 +2181,8 @@
                     is_approved: a, 
                     allow_pro: p, 
                     allow_image: i,
-                    allow_flash: f // 🔥 추가
+                    allow_flash: f,
+                    allow_thinking: t // 🔥 추가
                 })
             });
             
@@ -2405,4 +2631,55 @@
             }
         }
         // ▲▲▲ [추가] 여기까지 ▲▲▲
+
+        // =========================================
+        // 📢 릴리즈 노트 (공지사항) 시스템
+        // =========================================
+        async function openNoticeModal(isAutoCheck = false) {
+            try {
+                const res = await fetch('/api/notices');
+                const notices = await res.json();
+                
+                if (!notices || notices.length === 0) return;
+
+                const latestVersion = notices[0].version; // 최신 버전
+                const lastSeenVersion = localStorage.getItem('assistBerry_lastSeenVersion');
+
+                // 자동 체크 모드일 때, 이미 본 버전이면 띄우지 않음
+                if (isAutoCheck && lastSeenVersion === latestVersion) return;
+
+                // 모달 내용 렌더링
+                const container = document.getElementById('notice-list-container');
+                container.innerHTML = '';
+                
+                notices.forEach(notice => {
+                    const card = document.createElement('div');
+                    card.className = 'notice-card';
+                    
+                    const ulHtml = notice.updates.map(u => `<li>${u}</li>`).join('');
+                    
+                    card.innerHTML = `
+                        <div>
+                            <span class="notice-version">${notice.version}</span>
+                            <span class="notice-date">${notice.date}</span>
+                        </div>
+                        <h4 class="notice-title">${notice.title}</h4>
+                        <ul class="notice-ul">${ulHtml}</ul>
+                    `;
+                    container.appendChild(card);
+                });
+
+                document.getElementById('notice-modal-overlay').style.display = 'flex';
+                
+                // 최신 버전을 봤으므로 로컬 스토리지 업데이트
+                localStorage.setItem('assistBerry_lastSeenVersion', latestVersion);
+
+            } catch (e) { console.error("Notice Load Error:", e); }
+        }
+
+        // 매뉴얼 수동 오픈 함
+        function openManualModal() {
+            document.getElementById('manual-modal-overlay').style.display = 'flex';
+        }
+
     </script>
