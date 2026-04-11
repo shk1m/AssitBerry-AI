@@ -213,13 +213,31 @@
 
         .sidebar-footer { padding: 20px; border-top: 1px solid var(--border-subtle); background: rgba(0,0,0,0.1); }
         
-        /* Styled Select */
-        #model-select { 
-            width: 100%; padding: 10px 12px; background: rgba(0,0,0,0.3); 
+        /* 변경된 코드: Styled Select (공통) */
+        #model-select, #thinking-select { 
+            width: 100%; 
+            padding: 10px 30px 10px 12px; /* 우측 화살표 공간 확보 */
+            background: rgba(0,0,0,0.3); 
             border: 1px solid var(--border-subtle); color: var(--text-secondary); 
             border-radius: 8px; outline: none; margin-bottom: 10px; cursor: pointer;
+            
+            /* ▼▼▼ 글자 넘침 방지 및 화살표 추가 ▼▼▼ */
+            appearance: none; -webkit-appearance: none; -moz-appearance: none;
+            background-image: url("data:image/svg+xml;utf8,<svg fill='%23aeb5bc' height='24' viewBox='0 0 24 24' width='24' xmlns='http://www.w3.org/2000/svg'><path d='M7 10l5 5 5-5z'/></svg>");
+            background-repeat: no-repeat;
+            background-position: right 8px center;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
         }
-        #model-select:focus { border-color: var(--accent-primary); }
+        #model-select:focus, #thinking-select:focus { border-color: var(--accent-primary); }
+
+        #thinking-select {
+            border: 1px dashed var(--accent-primary);
+            color: var(--accent-primary);
+            font-weight: 600;
+            font-size: 0.85rem;
+            /* 추론 셀렉트는 파란색 화살표로 맞춤 */
+            background-image: url("data:image/svg+xml;utf8,<svg fill='%235c7cfa' height='24' viewBox='0 0 24 24' width='24' xmlns='http://www.w3.org/2000/svg'><path d='M7 10l5 5 5-5z'/></svg>");
+        }
 
         .admin-btn { width: 100%; padding: 10px; background: rgba(201, 42, 42, 0.2); color: #ff8787; border: 1px solid rgba(201, 42, 42, 0.3); border-radius: 8px; font-weight: 600; cursor: pointer; margin-bottom: 10px; transition: 0.2s; }
         .admin-btn:hover { background: rgba(201, 42, 42, 0.3); }
@@ -263,10 +281,6 @@
         .usage-meter .sep { color: rgba(255,255,255,0.1); }
 
     
-        /* [2026.03.17 추가] 커피 문구 애니메이션 추가 */
-        .coffee-link {
-            animation: pulse 2s infinite;
-        }
         @keyframes pulse {
             0% { opacity: 0.8; }
             50% { opacity: 1; text-shadow: 0 0 10px rgba(252, 196, 25, 0.5); }
@@ -481,12 +495,20 @@
             transform: translateY(-2px);
         }
         
+        /* 변경된 코드 */
         #mode-select {
             background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.05);
             color: var(--text-secondary); border-radius: 18px; 
-            padding: 0 12px; height: 32px; font-size: 0.8rem; font-weight: 600;
-            outline: none; margin-right: 8px; cursor: pointer; appearance: none;
-            transition: 0.2s; text-align: center;
+            padding: 0 24px 0 12px; height: 32px; font-size: 0.8rem; font-weight: 600;
+            outline: none; margin-right: 8px; cursor: pointer; 
+            transition: 0.2s; text-align: left;
+            
+            /* ▼▼▼ 글자 넘침 방지 및 화살표 추가 ▼▼▼ */
+            appearance: none; -webkit-appearance: none; -moz-appearance: none;
+            background-image: url("data:image/svg+xml;utf8,<svg fill='%23aeb5bc' height='20' viewBox='0 0 24 24' width='20' xmlns='http://www.w3.org/2000/svg'><path d='M7 10l5 5 5-5z'/></svg>");
+            background-repeat: no-repeat;
+            background-position: right 4px center;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
         }
         #mode-select:hover { color: var(--accent-primary); background: rgba(92, 124, 250, 0.1); }
         #mode-select option { background: #25262b; }
@@ -978,21 +1000,26 @@
             <div id="session-list"></div>
             
             <div class="sidebar-footer">
-                <button class="admin-btn" onclick="openManualModal()" style="background:rgba(81, 207, 102, 0.1); color:#51cf66; border-color:rgba(81, 207, 102, 0.2); margin-bottom:10px;">
-                    📖 사용자 매뉴얼
-                </button>
-                <button class="admin-btn" onclick="openNoticeModal(false)" style="background:rgba(92, 124, 250, 0.1); color:var(--accent-primary); border-color:rgba(92, 124, 250, 0.2); margin-bottom:10px;">
-                    📢 업데이트 노트
-                </button>
-                <button class="admin-btn" onclick="clearAllSessions()" style="background:rgba(255, 107, 107, 0.1); color:#ff8787; border-color:rgba(255, 107, 107, 0.2); margin-bottom:10px;">
-                    🗑️ Clear All History
-                </button>
-                <button class="admin-btn" id="admin-panel-btn" onclick="openAdminPanel()" style="display:none;">Admin Dashboard</button>
+                <div id="footer-menu-toggle" onclick="toggleFooterMenu()" style="text-align: center; color: var(--text-dim); font-size: 0.8rem; cursor: pointer; padding-bottom: 10px; margin-bottom: 10px; border-bottom: 1px solid var(--border-subtle); transition: color 0.2s;">
+                    ▲ 부가 메뉴 펼치기
+                </div>
                 
+                <div id="footer-collapsible-area" style="display: none;">
+                    <button class="admin-btn" onclick="openManualModal()" style="background:rgba(81, 207, 102, 0.1); color:#51cf66; border-color:rgba(81, 207, 102, 0.2); margin-bottom:10px;">
+                        📖 사용자 매뉴얼
+                    </button>
+                    <button class="admin-btn" onclick="openNoticeModal(false)" style="background:rgba(92, 124, 250, 0.1); color:var(--accent-primary); border-color:rgba(92, 124, 250, 0.2); margin-bottom:10px;">
+                        📢 업데이트 노트
+                    </button>
+                    <button class="admin-btn" onclick="clearAllSessions()" style="background:rgba(255, 107, 107, 0.1); color:#ff8787; border-color:rgba(255, 107, 107, 0.2); margin-bottom:10px;">
+                        🗑️ Clear All History
+                    </button>
+                    <button class="admin-btn" id="admin-panel-btn" onclick="openAdminPanel()" style="display:none;">Admin Dashboard</button>
+                </div>
                 <select id="model-select">
                     <option value="gemini-3.1-flash-lite" selected>⚡ Gemini 3.1 Flash Lite (Speed)</option>
                     <option value="gemini-3-flash">🌿 Gemini 3.0 Flash (Expert)</option>
-                    <option value="gemini-3.1-pro">🧠 Gemini 3.1 Pro (Pro)</option>
+                    <option value="gemini-3.1-pro">🐳 DeepSeek R1 (Pro)</option>
                 </select>
 
                 <select id="thinking-select" style="display:none; width: 100%; padding: 10px 12px; background: rgba(0,0,0,0.3); border: 1px dashed var(--accent-primary); color: var(--accent-primary); border-radius: 8px; outline: none; margin-bottom: 10px; cursor: pointer; font-weight: 600; font-size: 0.85rem;">
@@ -1024,9 +1051,6 @@
                     </span>
                     <span class="sep">|</span>
                     <span>Month: <strong id="usage-month">$0.0000</strong></span>
-                    
-                    <span class="coffee-link" style="cursor:help; font-weight:bold; color:#fcc419; margin-left:8px;" 
-                          title="개발자의 지갑이 얇아지고 있습니다... 💸">☕ 커피 사주기 (마음만)</span>
                 </div>
             </div>
             
@@ -1313,7 +1337,12 @@
 
                     document.getElementById('usage-month').innerText = `$${data.monthly.toFixed(4)}`;
                     document.getElementById('usage-total').innerText = `$${data.total.toFixed(4)}`;
-                    document.getElementById('usage-meter').style.display = 'flex';
+                    // 관리자(admin) 또는 특정 계정에게만 표시하도록 수정
+                    if (currentUser && (currentUser.role === 'admin' || currentUser.username === 'shoo.kim')) {
+                        document.getElementById('usage-meter').style.display = 'flex';
+                    } else {
+                        document.getElementById('usage-meter').style.display = 'none';
+                    }
                 }
             } catch (e) { console.error("Usage fetch error", e); }
         }
@@ -2680,6 +2709,22 @@
         // 매뉴얼 수동 오픈 함
         function openManualModal() {
             document.getElementById('manual-modal-overlay').style.display = 'flex';
+        }
+
+        // ▼▼▼ 사이드바 메뉴 접기/펼치기 기능 ▼▼▼
+        function toggleFooterMenu() {
+            const area = document.getElementById('footer-collapsible-area');
+            const btn = document.getElementById('footer-menu-toggle');
+            
+            if (area.style.display === 'none') {
+                area.style.display = 'block';
+                btn.innerText = '▼ 부가 메뉴 접기';
+                btn.style.color = 'var(--text-primary)';
+            } else {
+                area.style.display = 'none';
+                btn.innerText = '▲ 부가 메뉴 펼치기';
+                btn.style.color = 'var(--text-dim)';
+            }
         }
 
     </script>

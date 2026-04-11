@@ -1,13 +1,20 @@
 # AssistBerry AI (Data Architect Assistant)
 
-**AssistBerry AI**는 데이터 엔지니어링 및 비즈니스 업무 효율화를 위해 개발된 **올인원 AI 플랫폼**입니다.
-Google Gemini의 최신 모델 라인업(Pro/Flash/Image)을 기반으로 하며, 사내 인프라(SCP, Spark, Airflow) 트러블슈팅 지원, 실시간 API 비용 트래킹, 그리고 표준 보고서 작성 자동화 기능을 제공합니다.
+**AssistBerry AI**는 데이터 엔지니어링 및 비즈니스 업무 효율화를 위해 개발된 **고성능 하이브리드 AI 플랫폼**입니다.
+Google Gemini의 멀티모달 능력과 DeepSeek R1의 강력한 논리 추론 능력을 결합하여, 인프라(SCP, Spark, Airflow) 트러블슈팅 및 초저비용 고성능 코딩 환경을 제공합니다.
 
 ![License](https://img.shields.io/badge/License-Private-red)
 ![Node](https://img.shields.io/badge/Node.js-%3E%3D18-green)
 ![Status](https://img.shields.io/badge/Status-Production-blue)
 
 ---
+
+## 🚀 주요 업데이트 (2026.04)
+
+- **DeepSeek R1 Integration**: 기존 Gemini Pro 엔진을 초가성비/고지능 모델인 `deepseek-reasoner`로 전격 교체. 데이터 파이프라인 설계 및 코드 작성 비용을 **기존 대비 1/15 수준**으로 절감.
+- **Context Summarization (10-Turn Logic)**: 대화가 10턴을 초과할 경우 `Flash-Lite` 모델이 과거 대화를 자동으로 요약하여 문맥을 유지하고 DB 용량과 토큰 비용을 최적화합니다.
+- **Thinking UI**: DeepSeek R1의 깊은 사고 과정을 실시간으로 확인할 수 있는 전용 추론 레이아웃을 도입했습니다.
+
 
 ## 핵심 기능 (Key Features)
 
@@ -76,6 +83,7 @@ GEMINI_API_KEY=your_google_api_key_here
 
 # 세션 암호화 키
 SESSION_SECRET=your_secret_key_1234
+DEEPSEEK_API_KEY=your_deepseek_api_key
 
 
 Gemini의 응답

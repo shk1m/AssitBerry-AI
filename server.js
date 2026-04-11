@@ -23,21 +23,34 @@ if (!process.env.GEMINI_API_KEY) {
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
-// [2026.03.17 추가] 실제 매핑될 모델 ID (Google API 기준)
+// [2026.04.12] OpenAI 패키지 추가 및 DeepSeek 초기화 
+const { OpenAI } = require('openai');
+const deepseek = new OpenAI({
+    baseURL: 'https://api.deepseek.com',
+    apiKey: process.env.DEEPSEEK_API_KEY
+});
+
+// 2. MODEL_MAP 수정
 const MODEL_MAP = {
     'gemini-3.1-flash-lite': 'gemini-3.1-flash-lite-preview',
-    'gemini-3.1-pro': 'gemini-3.1-pro-preview',
-    'gemini-3-flash': 'gemini-3-flash-preview' 
+    'gemini-3-flash': 'gemini-3-flash-preview',
+    'gemini-3.1-pro': 'deepseek-reasoner' // 🔥 엔진을 딥시크 R1으로 교체!
 };
 
-// ▼▼▼ [2026.03.17 추가] [비용 계산용 추가] 100만 토큰 당 가격 (달러 기준) ▼▼▼
+// 3. PRICING 수정 (DeepSeek 단가 반영) 
 const PRICING = {
     'gemini-3.1-flash-lite-preview': { input: 0.075, output: 0.30 },
     'gemini-3-flash-preview': { input: 0.075, output: 0.30 },
-    'gemini-3.1-pro-preview': { input: 1.25, output: 5.00 }
+    'deepseek-reasoner': { input: 0.14, output: 0.28 } // 🔥 출력 비용이 기존 $5.00에서 $0.28로 폭락!
 };
 
-//[2026.03.21 추가]
+// ▼▼▼ [추가] 한국시간(KST) 기준 'YYYY-MM' 반환 함수 ▼▼▼
+const getCurrentMonthStr = () => {
+    const d = new Date();
+    d.setHours(d.getHours() + 9); // UTC에 9시간 더해서 KST 맞춤
+    return d.toISOString().slice(0, 7); // 예: '2026-04'
+};
+
 const trackUsage = (userId, modelName, usageMetadata, isImage = false) => {
     return new Promise((resolve) => {
         let cost = 0;
@@ -54,24 +67,31 @@ const trackUsage = (userId, modelName, usageMetadata, isImage = false) => {
         }
 
         if (cost > 0) {
-            // 1. users 테이블 누적 비용 업데이트
+            // ▼▼▼ [수정됨] 달이 바뀌었으면 monthly_cost 리셋 후 더하기 ▼▼▼
+            const currentMonthStr = getCurrentMonthStr();
+
             db.run(`UPDATE users SET 
-                    monthly_cost = IFNULL(monthly_cost, 0) + ?, 
-                    total_cost = IFNULL(total_cost, 0) + ? 
-                    WHERE id = ?`, [cost, cost, userId], () => {
+                    monthly_cost = CASE 
+                        WHEN IFNULL(last_cost_month, '') != ? THEN ? 
+                        ELSE IFNULL(monthly_cost, 0) + ? 
+                    END, 
+                    total_cost = IFNULL(total_cost, 0) + ?,
+                    last_cost_month = ?
+                    WHERE id = ?`, 
+                    [currentMonthStr, cost, cost, cost, currentMonthStr, userId], () => {
                 
-                // 2. usage_logs 테이블에 상세 로그 인서트 (보너스 기능 추가!)
+                // 2. usage_logs 테이블에 상세 로그 인서트
                 db.run(`INSERT INTO usage_logs (user_id, model, prompt_tokens, completion_tokens, cost) 
                         VALUES (?, ?, ?, ?, ?)`, 
                         [userId, modelName, inputTokens, outputTokens, cost], 
                         () => resolve());
             });
+            // ▲▲▲ [수정 완료] ▲▲▲
         } else {
             resolve();
         }
     });
 };
-// ▲▲▲ [추가 완료] ▲▲▲
 
 app.use(express.static('public'));
 app.use(bodyParser.json());
@@ -314,22 +334,29 @@ app.get('/api/auth/me', (req, res) => {
     res.json({ username: req.session.username, role: req.session.role, allowPro: req.session.allowPro, allowImage: req.session.allowImage, allowFlash: req.session.allowFlash, allowThinking: req.session.allowThinking }); 
 });
 
-// ▼▼▼ [2026.03.17 추가] 내 비용 정보 가져오기 API ▼▼▼
 app.get('/api/usage/me', isAuthenticated, (req, res) => {
-    db.get("SELECT monthly_cost, total_cost FROM users WHERE id = ?", [req.session.userId], (err, row) => {
+    const currentMonthStr = getCurrentMonthStr();
+    db.get("SELECT monthly_cost, total_cost, last_cost_month FROM users WHERE id = ?", [req.session.userId], (err, row) => {
         if (err || !row) return res.json({ monthly: 0, total: 0 });
-        res.json({ monthly: row.monthly_cost || 0, total: row.total_cost || 0 });
+        
+        // 마지막 사용 월과 현재 월이 다르면 화면에는 0으로 표시 (실제 DB는 다음 채팅 시 리셋됨)
+        const displayMonthly = (row.last_cost_month === currentMonthStr) ? (row.monthly_cost || 0) : 0;
+        res.json({ monthly: displayMonthly, total: row.total_cost || 0 });
     });
 });
-// ▲▲▲ [추가 완료] ▲▲▲
 
 
-// [2026.03.21 추가새로운 코드 - 덮어쓰기]
 app.get('/api/admin/users', isAuthenticated, isAdmin, (req, res) => {
-    // 🔥 핵심: SELECT 구문에 allow_thinking 컬럼 추가
-    db.all("SELECT id, username, role, is_approved, allow_pro, allow_image, allow_flash, allow_thinking, monthly_cost, total_cost, created_at FROM users ORDER BY created_at DESC", [], (err, rows) => {
+    const currentMonthStr = getCurrentMonthStr();
+    db.all("SELECT id, username, role, is_approved, allow_pro, allow_image, allow_flash, allow_thinking, monthly_cost, total_cost, last_cost_month, created_at FROM users ORDER BY created_at DESC", [], (err, rows) => {
         if (err) return res.status(500).json({error: err.message});
-        res.json(rows);
+        
+        // 달이 바뀌었으면 관리자 화면에서도 당월 비용을 0으로 표시
+        const mappedRows = rows.map(r => ({
+            ...r,
+            monthly_cost: (r.last_cost_month === currentMonthStr) ? (r.monthly_cost || 0) : 0
+        }));
+        res.json(mappedRows);
     });
 });
 // ▼▼▼ [교체] 시스템 상태 확인 API (CPU % 계산 및 디스크 파싱 개선) ▼▼▼
@@ -719,83 +746,85 @@ app.post('/api/chat', isAuthenticated, upload.array('files'), async (req, res) =
         if (currentParts.length === 0) return res.status(400).json({ error: "내용을 입력하세요." });
         contents.push({ role: 'user', parts: currentParts });
 
-        // 5. Gemini 호출
+        // DeepSeek 모드인데 파일이 첨부된 경우 차단
+        if (targetEngine === 'deepseek-reasoner' && files.length > 0) {
+            return res.status(400).json({ 
+                error: "DeepSeek R1 모델은 텍스트 전용입니다. 파일이나 이미지 분석은 좌측 하단의 모델을 'Gemini'로 변경한 후 진행해주세요." 
+            });
+        }
+
+        // ==========================================
+        // 5. 모델 호출 (Gemini vs DeepSeek 분기 처리)
+        // ==========================================
         const now = new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' });
         const finalInstruction = `${baseInstruction}\n\n[Context Info]\nTime: ${now}\n[User Profile]: ${userMemory || "None"}`;
 
-        const configObj = { 
-            systemInstruction: finalInstruction,
-            tools: [{ googleSearch: {} }]
-            //maxOutputTokens: 8192 // [2026.03.22 추가] 1회 답변당 최대 출력 토큰 수 제한 (서비스 지장 없는 넉넉한 수준, 비용 폭탄 완벽 방지)
-        };
-
-        // [2026.03.22 안전망 추가] 서버 측에서도 지원 가능한 모델만 엄격하게 필터링
-        const THINKING_SUPPORTED = ['gemini-3.1-pro-preview', 'gemini-3.1-pro'];
-
-        if (THINKING_SUPPORTED.includes(targetEngine) && thinkingLevel && thinkingLevel !== 'none') {
-             
-            // 관리자이거나 추론 권한이 있는 경우만 적용
-            if (req.session.role === 'admin' || req.session.allowThinking) {
-                configObj.thinkingConfig = {
-                    thinkingLevel: thinkingLevel, 
-                    includeThoughts: true   
-                };
-            }
-        }
-
-        // [2026.03.21 동적 추론 설정] 화면에서 선택한 값이 있고, 권한이 확인된 경우에만 활성화
-        if ((targetEngine === 'gemini-3.1-pro-preview' || targetEngine === 'gemini-3.1-pro') && 
-             thinkingLevel && thinkingLevel !== 'none') {
-             
-            // 관리자이거나 추론 권한이 있는 경우만 적용
-            if (req.session.role === 'admin' || req.session.allowThinking) {
-                configObj.thinkingConfig = {
-                    thinkingLevel: thinkingLevel, // 'LOW', 'MEDIUM', 'HIGH'
-                    includeThoughts: true   
-                };
-            }
-        }
-
-        const response = await ai.models.generateContent({
-            model: targetEngine,
-            config: configObj,
-            contents: contents 
-        });
-
-        if (response.usageMetadata) {
-            await trackUsage(userId, targetEngine, response.usageMetadata, false);
-        }
-
-        // 🚀 [추가됨] 응답 처리 (추론 과정 추출 포함)
         let responseText = "";
-        let thoughtText = ""; // 🤔 추론 과정 임시 저장
+        let thoughtText = "";
 
-        const candidate = response.candidates && response.candidates[0];
-        if (candidate && candidate.content && candidate.content.parts) {
-            for (const part of candidate.content.parts) {
-                if (part.text) {
-                    responseText += part.text;
-                } else if (part.thought) { 
-                    // 추론 과정을 접었다 펼칠 수 있는 마크다운 형태로 저장
-                    thoughtText += `<details class="thinking-process"><summary>🧠 AssistBerry Thinking...</summary>\n\n${part.text}\n\n</details>\n\n`;
-                } else if (part.executableCode) {
-                    responseText += `\n\n**[Code Executed]**\n\`\`\`python\n${part.executableCode.code}\n\`\`\`\n`;
-                } else if (part.codeExecutionResult) {
-                    responseText += `\n> **Output:** \`${part.codeExecutionResult.output?.trim()}\`\n\n`;
-                }
+        if (targetEngine === 'deepseek-reasoner') {
+            // 🧠 [DeepSeek R1 호출 로직]
+            const dsMessages = [{ role: "system", content: finalInstruction }];
+            
+            // 히스토리 변환 (DeepSeek은 system, user, assistant 포맷 사용)
+            historyRows.forEach(msg => {
+                dsMessages.push({ 
+                    role: msg.role === 'model' ? 'assistant' : 'user', 
+                    content: msg.content 
+                });
+            });
+            // 현재 메시지 추가
+            dsMessages.push({ role: "user", content: message });
+
+            const dsResponse = await deepseek.chat.completions.create({
+                model: targetEngine,
+                messages: dsMessages,
+            });
+
+            // R1 모델 특유의 추론(Thinking) 과정 추출
+            if (dsResponse.choices[0].message.reasoning_content) {
+                thoughtText = `<details class="thinking-process" open><summary>🧠 DeepSeek Thinking...</summary>\n\n${dsResponse.choices[0].message.reasoning_content}\n\n</details>\n\n`;
             }
-        } else if (typeof response.text === 'function') {
-            responseText = response.text();
-        }
+            
+            responseText = thoughtText + dsResponse.choices[0].message.content;
 
-        // 최종 답변 텍스트 맨 앞에 추론 과정을 합치기
-        if (thoughtText) {
-            responseText = thoughtText + responseText;
+            // 비용(Usage) 트래킹 (Gemini 규격에 맞춰 객체 전달)
+            await trackUsage(userId, targetEngine, { 
+                promptTokenCount: dsResponse.usage.prompt_tokens, 
+                candidatesTokenCount: dsResponse.usage.completion_tokens 
+            }, false);
+
+        } else {
+            // ⚡ [기존 Gemini Flash/Lite 호출 로직]
+            const configObj = { 
+                systemInstruction: finalInstruction,
+                tools: [{ googleSearch: {} }]
+            };
+
+            const response = await ai.models.generateContent({
+                model: targetEngine,
+                config: configObj,
+                contents: contents 
+            });
+
+            if (response.usageMetadata) {
+                await trackUsage(userId, targetEngine, response.usageMetadata, false);
+            }
+
+            const candidate = response.candidates && response.candidates[0];
+            if (candidate && candidate.content && candidate.content.parts) {
+                for (const part of candidate.content.parts) {
+                    if (part.text) responseText += part.text;
+                }
+            } else if (typeof response.text === 'function') {
+                responseText = response.text();
+            }
         }
 
         if (!responseText) responseText = "⚠️ 응답을 불러오지 못했습니다.";
 
         await saveMessage(sessionId, 'model', responseText, isAdminUser);
+        // ==========================================
 
         // 🚀 [추가됨] 사용자 프로필 디바운싱 (매 5턴마다 1번만 업데이트)
         // 기존: updateUserMemory(userId, dbContent, responseText);
@@ -941,6 +970,10 @@ db.run("ALTER TABLE users ADD COLUMN monthly_cost REAL DEFAULT 0.0", (err) => {
 });
 db.run("ALTER TABLE users ADD COLUMN total_cost REAL DEFAULT 0.0", (err) => {
     if (!err) console.log("✅ DB 업데이트 완료: total_cost 컬럼 추가됨");
+});
+// ▼▼▼ [추가] 매월 초기화를 위한 월(Month) 기록 컬럼 ▼▼▼
+db.run("ALTER TABLE users ADD COLUMN last_cost_month TEXT DEFAULT ''", (err) => {
+    if (!err) console.log("✅ DB 업데이트 완료: last_cost_month 컬럼 추가됨");
 });
 // ▼▼▼ [2026.03.21 추가] 추론 권한 컬럼 ▼▼▼
 db.run("ALTER TABLE users ADD COLUMN allow_thinking INTEGER DEFAULT 0", (err) => {
