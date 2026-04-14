@@ -12,6 +12,7 @@ const multer = require('multer'); // 🔥 추가
 const upload = multer({ storage: multer.memoryStorage() }); // 🔥 파일을 메모리에만 임시 저장 (디스크 저장 X)
 
 const app = express();
+app.use((req, res, next) => { console.log("요청 들어옴:", req.method, req.url); next(); });
 const PORT = 3000;
 
 console.log("ENV KEY:", process.env.GEMINI_API_KEY);
@@ -334,6 +335,21 @@ app.get('/api/auth/me', (req, res) => {
     res.json({ username: req.session.username, role: req.session.role, allowPro: req.session.allowPro, allowImage: req.session.allowImage, allowFlash: req.session.allowFlash, allowThinking: req.session.allowThinking }); 
 });
 
+// ▼▼▼ [2026.04.14 추가] 메모장 API ▼▼▼
+app.get('/api/memo', isAuthenticated, (req, res) => {
+    db.get("SELECT memo FROM users WHERE id = ?", [req.session.userId], (err, row) => {
+        res.json({ memo: row ? row.memo : '' });
+    });
+});
+
+app.post('/api/memo', isAuthenticated, (req, res) => {
+    db.run("UPDATE users SET memo = ? WHERE id = ?", [req.body.memo, req.session.userId], (err) => {
+        if (err) return res.status(500).json({error: err.message});
+        res.json({ success: true });
+    });
+});
+// ▲▲▲ [추가] 여기까지 ▲▲▲
+
 app.get('/api/usage/me', isAuthenticated, (req, res) => {
     const currentMonthStr = getCurrentMonthStr();
     db.get("SELECT monthly_cost, total_cost, last_cost_month FROM users WHERE id = ?", [req.session.userId], (err, row) => {
@@ -403,11 +419,11 @@ app.get('/api/admin/status', isAuthenticated, isAdmin, (req, res) => {
     });
 });
 // ▲▲▲ [교체] 여기까지 ▲▲▲
-// [2026.03.17 추가] 수정
+// [2026.03.17 추가] 수정 (Think 권한 업데이트 제거)
 app.post('/api/admin/update', isAuthenticated, isAdmin, (req, res) => {
-    const { id, is_approved, allow_pro, allow_image, allow_flash, allow_thinking } = req.body;
-    db.run("UPDATE users SET is_approved = ?, allow_pro = ?, allow_image = ?, allow_flash = ?, allow_thinking = ? WHERE id = ?", 
-        [is_approved, allow_pro, allow_image, allow_flash, allow_thinking, id],
+    const { id, is_approved, allow_pro, allow_image, allow_flash } = req.body;
+    db.run("UPDATE users SET is_approved = ?, allow_pro = ?, allow_image = ?, allow_flash = ? WHERE id = ?", 
+        [is_approved, allow_pro, allow_image, allow_flash, id],
         (err) => { 
             if(err) return res.status(500).json({error:err.message}); 
             res.json({success:true}); 
@@ -877,7 +893,7 @@ app.post('/api/chat', isAuthenticated, upload.array('files'), async (req, res) =
 // ▲▲▲ [수정 완료] 1. 채팅 라우트 끝 ▲▲▲
 
 // ▼▼▼ [수정] 나노바나나(이미지 생성) 라우트 - 파일 업로드 지원 추가 ▼▼▼
-// ▼▼▼ [수정] 2. 나노바나나 라우트 (한글 깨짐 해결 + 중복 저장 방지) ▼▼▼
+// ▼▼▼ [수정] 2. 나노바나나 라우터 (문맥 파악 + 12시간 저장 로직) ▼▼▼
 app.post('/api/image', isAuthenticated, upload.array('files'), async (req, res) => {
     if (req.session.role !== 'admin' && !req.session.allowImage) {
         return res.status(403).json({ error: "Access Denied: Banana Mode Locked" });
@@ -887,54 +903,81 @@ app.post('/api/image', isAuthenticated, upload.array('files'), async (req, res) 
     const files = req.files || []; 
     
     try {
-        // ★ [핵심 1] 한글 파일명 깨짐 복구
-        files.forEach(file => {
-            file.originalname = Buffer.from(file.originalname, 'latin1').toString('utf8');
-        });
+        files.forEach(file => { file.originalname = Buffer.from(file.originalname, 'latin1').toString('utf8'); });
 
-        // 2. 유저 메시지 저장
+        // 1. 유저 메시지 저장
         let saveContent = prompt;
-        // 파일이 있으면 텍스트 뒤에 파일명 표시
         if (files.length > 0) {
              const fileTags = files.map(f => `[참조 파일: ${f.originalname}]`).join(', ');
-             if (!saveContent || saveContent.trim() === "") saveContent = fileTags;
-             else saveContent += `\n${fileTags}`;
+             saveContent = (!saveContent || saveContent.trim() === "") ? fileTags : `${saveContent}\n${fileTags}`;
         }
-        
-        // ★ [핵심 2] 여기서 한 번만 저장
         await saveMessage(sessionId, 'user', saveContent, req.session.role === 'admin');
+
+        // ★ [추가] 2. 대화 문맥 가져오기 및 프롬프트 재구성 (토큰 절약 핵심 로직)
+        // 최근 5개의 대화만 가져옴 (비용 최적화)
+        const historyRows = await new Promise((resolve) => {
+            db.all("SELECT role, content FROM messages WHERE session_id = ? ORDER BY created_at DESC LIMIT 5", [sessionId], (err, r) => resolve(r ? r.reverse() : []));
+        });
+
+        let finalImagePrompt = prompt || "";
+
+        // 대화 기록이 2개 이상이면 문맥이 있다고 판단
+        if (historyRows.length > 1) {
+            const historyText = historyRows.map(m => {
+                // 과거의 무거운 Base64 이미지는 문맥 파악에 필요 없으므로 가벼운 텍스트로 치환해서 Flash에게 던짐
+                let cleanText = m.content.replace(/!\[.*?\]\(data:image\/.*?;base64,.*?\)/g, '[이전에 생성된 이미지]');
+                return `[${m.role}] ${cleanText}`;
+            }).join('\n');
+
+            const contextPrompt = `
+            You are an expert prompt engineer for Image Generation AI.
+            다음은 사용자와의 최근 대화 기록입니다. 사용자가 방금 새로운 이미지 생성을 요청했습니다: "${prompt}"
+            
+            대화 문맥을 파악하여, 이미지 생성 AI가 완벽하게 이해할 수 있는 "하나의 구체적인 영문 프롬프트(Detailed English Prompt)"로 재작성해주세요.
+            (예: 사용자가 "배경을 밤으로 바꿔줘"라고 했다면, 이전 대화의 주제를 포함하여 밤 배경의 전체 묘사를 영문으로 작성)
+            설명이나 인사말 없이 오직 '결과 프롬프트 텍스트'만 출력하세요.
+            
+            [최근 대화 기록]
+            ${historyText}
+            `;
+            
+            // 저렴한 Flash-Lite 모델을 사용해 프롬프트를 깎음
+            const promptRes = await ai.models.generateContent({
+                model: 'gemini-3.1-flash-lite-preview',
+                contents: [{ role: 'user', parts: [{ text: contextPrompt }] }]
+            });
+            
+            if (promptRes.text) {
+                finalImagePrompt = promptRes.text.trim();
+                console.log("🍌 [Context Enhanced Prompt]:", finalImagePrompt); // 터미널에서 향상된 프롬프트 확인 가능
+            }
+        }
 
         // 3. 모델 요청 구성
         const requestParts = [];
-        if (prompt && prompt.trim() !== "") requestParts.push({ text: prompt });
+        if (finalImagePrompt) requestParts.push({ text: finalImagePrompt });
         if (files.length > 0) {
             files.forEach(file => {
                 requestParts.push({
-                    inlineData: {
-                        mimeType: file.mimetype,
-                        data: file.buffer.toString('base64')
-                    }
+                    inlineData: { mimeType: file.mimetype, data: file.buffer.toString('base64') }
                 });
             });
         }
 
-        // 4. Gemini 호출
+        // 4. Gemini(Imagen) 호출
         const response = await ai.models.generateContent({
             model: 'gemini-3-pro-image-preview', 
             contents: [{ role: 'user', parts: requestParts }],
             config: { responseModalities: ["IMAGE"] }
         });
 
-        // ▼▼▼ [여기에 딱 2줄 추가!!] ▼▼▼
         await trackUsage(req.session.userId, 'gemini-3-pro-image-preview', null, true);
-        // ▲▲▲ [추가 완료] ▲▲▲
 
         const candidates = response.candidates;
         if (!candidates || !candidates[0]?.content?.parts) throw new Error("API 응답 없음");
 
         const parts = candidates[0].content.parts;
-        let base64Image = null;
-        let mimeType = 'image/png';
+        let base64Image = null, mimeType = 'image/png';
 
         for (const part of parts) {
             if (part.inlineData) {
@@ -949,11 +992,11 @@ app.post('/api/image', isAuthenticated, upload.array('files'), async (req, res) 
             throw new Error(textPart ? textPart.text : "이미지 생성 실패");
         }
         
-        // 5. DB 저장용 vs 클라이언트 전송용 분리
-        const responseForClient = `![Generated Image](data:${mimeType};base64,${base64Image})\n\n**🍌 Generated via Banana Mode**`;
-        const contentForDB = `[🍌 이미지 생성 완료] (DB 용량 절약을 위해 이미지는 저장되지 않았습니다.)`;
-
-        await saveMessage(sessionId, 'model', contentForDB, req.session.role === 'admin');
+        // 5. DB 저장 및 클라이언트 전송
+        const responseForClient = `![Generated Image](data:${mimeType};base64,${base64Image})\n\n**🍌 Generated via Banana Mode**\n<span style="font-size:0.75rem; color:#888;">(이 이미지는 12시간 후 텍스트로 대체됩니다)</span>`;
+        
+        // ★ 기존에는 DB에 텍스트만 저장했지만, 12시간 유지를 위해 실제 이미지 데이터를 DB에 저장함
+        await saveMessage(sessionId, 'model', responseForClient, req.session.role === 'admin');
         
         res.json({ response: responseForClient }); 
 
@@ -986,6 +1029,28 @@ db.run("ALTER TABLE users ADD COLUMN allow_flash INTEGER DEFAULT 0", (err) => {
 
 // ▼▼▼ [2026.03.23 수정] 공지사항 및 릴리즈 노트 API ▼▼▼
 const APP_NOTICES = [
+    {
+        version: "v1.5.0",
+        date: "2026.04.14",
+        title: "🍌 나노바나나 지능 업그레이드 및 🐳 딥시크 UI 대폭 개선",
+        updates: [
+            "🐳 딥시크(DeepSeek R1) 답변 출력 관련 버그 수정 및 전용 사이버펑크 로딩 애니메이션(네온 이펙트) 적용",
+            "🍌 나노바나나 '문맥 이해(Prompt Chaining)' 도입: 이전 대화를 기억하여 이미지 연속 수정 가능 (예: '방금 그린 강아지한테 선글라스 씌워줘')",
+            "🧹 DB 용량 및 성능 최적화를 위해 나노바나나로 생성된 이미지는 12시간 후 텍스트로 자동 치환되는 스마트 메모리 시스템 적용",
+            "UI 직관성 개선: 바나나 모드 진입 시 불필요한 모델 선택창 자동 숨김 처리",
+            "접속 시 매뉴얼/업데이트 노트가 강제로 뜨지 않도록 팝업 피로도 개선 (좌측 하단 메뉴에서 수동 확인 가능)"
+        ]
+    },
+    {
+        version: "v1.4.0",
+        date: "2026.04.12",
+        title: "🐳 DeepSeek R1 전격 도입 및 사용성 개선",
+        updates: [
+            "Pro 모델 엔진을 초고성능의 'DeepSeek R1' 추가!!!(권한 필요)",
+            "DeepSeek의 사고 과정을 볼 수 있는 전용 추론(Thinking) UI 추가",
+            "비용 부담이 완전히 해소되어 Pro 모델로 마음껏 코딩 및 데이터 아키텍처 설계 가능"
+        ]
+    },
     {
         version: "v1.3.0",
         date: "2026.03.23",
@@ -1022,4 +1087,27 @@ app.get('/api/notices', isAuthenticated, (req, res) => {
 });
 // ▲▲▲ [수정 완료] ▲▲▲
 
-app.listen(PORT, () => { console.log(`Server started on http://localhost:${PORT}`); });
+// ▼▼▼ [추가] 12시간 경과된 바나나 모드 이미지 텍스트화 (메모리 최적화) ▼▼▼
+setInterval(() => {
+    // 현재 시간에서 12시간 뺀 시간 계산
+    const twelveHoursAgo = new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString().replace('T', ' ').slice(0, 19);
+    
+    // data:image...base64... 패턴이 들어간 모델의 답변을 찾아 짧은 텍스트로 치환
+    const sql = `
+        UPDATE messages 
+        SET content = '[🍌 이미지 보관 기간(12시간) 만료로 텍스트로 대체되었습니다.]'
+        WHERE role = 'model' 
+        AND content LIKE '%data:image/%' 
+        AND created_at < ?
+    `;
+    
+    db.run(sql, [twelveHoursAgo], function(err) {
+        if (err) console.error("Image Cleanup Error:", err);
+        else if (this.changes > 0) console.log(`🧹 [시스템 최적화] 12시간 경과된 이미지 ${this.changes}건 텍스트로 변환 완료.`);
+    });
+}, 60 * 60 * 1000); // 1시간(60 * 60 * 1000)마다 실행
+// ▲▲▲ [추가] 여기까지 ▲▲▲
+
+// ▼▼▼ [2026.04.14 수정] 아래 코드로 교체 (서버 응답 대기 시간을 10분으로 연장) ▼▼▼
+const server = app.listen(PORT, () => { console.log(`Server started on http://localhost:${PORT}`); });
+server.setTimeout(600000); // 10분 (600,000ms) - DeepSeek의 긴 추론 답변 소화용

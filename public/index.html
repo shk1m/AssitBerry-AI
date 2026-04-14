@@ -548,40 +548,64 @@
         /* =========================================
            7. Animations & Effects
            ========================================= */
+        /* [수정 및 추가 구역] 기존 애니메이션 코드를 아래로 교체하세요. */
+
         @keyframes messageSlideIn {
-            from { opacity: 0; transform: translateY(15px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        @keyframes fadeInUp {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        @keyframes shine {
-            to { background-position: 200% center; }
-        }
-
-        /* Shining Text */
-        .shining-text {
-            font-weight: 800; font-size: 1.1rem;
-            background: linear-gradient(to right, #fff 20%, #a5b4fc 40%, #a5b4fc 60%, #fff 80%);
-            background-size: 200% auto;
-            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-            animation: shine 4s linear infinite;
+            0% { 
+                opacity: 0; 
+                transform: translateY(20px) scale(0.98); 
+            }
+            100% { 
+                opacity: 1; 
+                transform: translateY(0) scale(1); 
+            }
         }
 
-        /* Typing Indicator */
-        .typing-indicator { display: flex; gap: 6px; padding: 10px 0; align-items: center; }
-        .typing-dot { width: 6px; height: 6px; background: var(--text-secondary); border-radius: 50%; animation: bounce 1.4s infinite ease-in-out both; }
+        .message { 
+            max-width: 850px; 
+            margin: 0 auto 24px; 
+            display: flex; 
+            flex-direction: column; 
+            position: relative; 
+            /* 애니메이션 적용 */
+            animation: messageSlideIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+            will-change: transform, opacity;
+        }
+
+        /* AI 답변의 텍스트가 순차적으로 나타나는 듯한 느낌을 주기 위한 스타일 */
+        .message.model .content {
+            transition: all 0.3s ease;
+            border-left: 2px solid transparent;
+        }
+
+        .message.model:hover .content {
+            border-left: 2px solid var(--accent-primary);
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        /* 로딩 애니메이션 (Typing Dots) 가로 정렬 및 웨이브 효과 */
+        .typing-indicator {
+            display: flex;
+            align-items: center;
+            gap: 5px; /* 점들 사이의 간격 */
+        }
+
+        .typing-dot {
+            width: 8px;
+            height: 8px;
+            background: var(--accent-primary);
+            border-radius: 50%;
+            animation: bounce 1.4s infinite ease-in-out both;
+        }
+
+        /* 점마다 딜레이를 주어 순서대로 통통 튀게 만듭니다 */
         .typing-dot:nth-child(1) { animation-delay: -0.32s; }
         .typing-dot:nth-child(2) { animation-delay: -0.16s; }
-        @keyframes bounce { 0%, 80%, 100% { transform: scale(0); opacity: 0.5; } 40% { transform: scale(1); opacity: 1; } }
+        .typing-dot:nth-child(3) { animation-delay: 0s; }
 
-        /* Snow Effect */
-        #snow-header-snow { position: absolute; top:0; left:0; width:100%; height:100%; pointer-events:none; z-index:1; }
-        .snowflake { position: absolute; top: -10px; background: white; border-radius: 50%; filter: blur(1px); animation: snowfall linear infinite; }
-        @keyframes snowfall {
-            0% { transform: translateY(0) translateX(0); opacity: 0.6; }
-            100% { transform: translateY(60px) translateX(20px) rotate(360deg); opacity: 0; }
+        @keyframes bounce { 
+            0%, 80%, 100% { transform: translateY(0); opacity: 0.4; } 
+            40% { transform: translateY(-6px); opacity: 1; } 
         }
         
         /* Mobile Adjustments */
@@ -911,6 +935,82 @@
         .notice-ul li { margin-bottom: 6px; }
         .notice-ul li::marker { color: var(--accent-primary); }
 
+        /* ▼▼▼ [2026.04.14 추가] 메모장 위젯 디자인 ▼▼▼ */
+        #memo-widget {
+            position: fixed; right: 20px; bottom: 100px; width: 320px;
+            background: rgba(30, 32, 40, 0.95); border: 1px solid var(--accent-primary);
+            border-radius: 12px; box-shadow: 0 10px 40px rgba(0,0,0,0.6);
+            display: none; flex-direction: column; z-index: 1000;
+            backdrop-filter: blur(10px); overflow: hidden;
+        }
+        .memo-header {
+            background: var(--accent-gradient); padding: 12px 15px;
+            color: white; font-weight: bold; display: flex;
+            justify-content: space-between; align-items: center; font-size: 0.95rem;
+        }
+        #memo-textarea {
+            width: 100%; height: 300px; background: transparent; color: var(--text-primary);
+            border: none; padding: 15px; resize: none; outline: none;
+            font-family: 'Pretendard', sans-serif; font-size: 0.95rem; line-height: 1.6;
+        }
+        #memo-textarea::placeholder { color: rgba(255, 255, 255, 0.3); }
+        #memo-save-btn {
+            background: rgba(255,255,255,0.2); border: none; color: white; font-weight: bold;
+            padding: 5px 10px; border-radius: 6px; cursor: pointer; font-size: 0.8rem; transition: 0.2s;
+        }
+        #memo-save-btn:hover { background: rgba(255,255,255,0.3); }
+        #memo-toggle-btn {
+            position: fixed; right: 24px; bottom: 100px; width: 54px; height: 54px;
+            background: var(--input-glass); border: 1px solid var(--border-subtle);
+            border-radius: 50%; color: white; display: flex; justify-content: center;
+            align-items: center; cursor: pointer; z-index: 1000; font-size: 1.4rem;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.4); backdrop-filter: blur(10px); transition: transform 0.2s, border-color 0.2s;
+        }
+        #memo-toggle-btn:hover { border-color: var(--accent-primary); transform: scale(1.05); }
+        @media (max-width: 768px) {
+            #memo-toggle-btn { bottom: 140px; right: 16px; }
+            #memo-widget { right: 16px; bottom: 200px; width: calc(100% - 32px); }
+        }
+        /* ▲▲▲ [2026.04.14 추가] 여기까지 ▲▲▲ */
+
+        /* ▼▼▼ [추가] 바나나 모드 포커스 유지 & 딥시크 로딩 애니메이션 ▼▼▼ */
+        body.banana-mode .input-wrapper:focus-within {
+            border: 2px solid #ffec99 !important;
+            box-shadow: 0 0 30px rgba(252, 196, 25, 0.6), inset 0 0 15px rgba(252, 196, 25, 0.2) !important;
+            background: rgba(40, 35, 10, 0.95) !important;
+        }
+
+        /* 딥시크(Pro) 전용 로딩 이펙트 */
+        .deepseek-loading {
+            background: linear-gradient(145deg, rgba(20,22,28,0.9), rgba(30,32,40,0.9));
+            border: 1px solid rgba(92, 124, 250, 0.3);
+            border-radius: 18px;
+            padding: 2px; /* 테두리 애니메이션 공간 */
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5), 0 0 20px rgba(92, 124, 250, 0.1);
+            max-width: fit-content;
+        }
+        .deepseek-loading::before {
+            content: ''; position: absolute; top: -50%; left: -50%; width: 200%; height: 200%;
+            background: conic-gradient(transparent, rgba(92, 124, 250, 0.6), transparent 30%);
+            animation: rotateGlow 3s linear infinite;
+        }
+        .deepseek-loading::after {
+            content: ''; position: absolute; inset: 2px;
+            background: #181920; border-radius: 16px; z-index: 1;
+        }
+        .deepseek-content { 
+            position: relative; z-index: 2; display: flex; align-items: center; gap: 15px; 
+            padding: 14px 20px; background: #181920; border-radius: 16px;
+        }
+        .ds-icon { font-size: 1.5rem; animation: pulseOp 2s infinite; }
+        .ds-text { color: #f8f9fa; font-weight: 600; font-family: 'JetBrains Mono', monospace; font-size: 0.95rem; }
+        .ds-sub { display: block; font-size: 0.75rem; color: var(--text-dim); margin-top: 4px; }
+        @keyframes rotateGlow { 100% { transform: rotate(360deg); } }
+        @keyframes pulseOp { 0%, 100% { opacity: 0.5; } 50% { opacity: 1; text-shadow: 0 0 15px #5c7cfa; } }
+        /* ▲▲▲ [추가 완료] ▲▲▲ */
+
     </style>
 </head>
 <body>
@@ -1038,7 +1138,6 @@
 
         <div id="main">
             <div id="chat-header">
-                <div class="snow-container" id="snow-header-snow"></div>
                 
                 <button id="toggle-sidebar-btn" onclick="event.stopPropagation(); toggleSidebar()">
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
@@ -1128,6 +1227,17 @@
         </div>
     </div>
     <div id="toast-container"></div>
+    <button id="memo-toggle-btn" onclick="toggleMemo()" title="Quick Memo">📝</button>
+        <div id="memo-widget">
+            <div class="memo-header">
+                <span>📝 Quick Memo</span>
+                <div>
+                    <button id="memo-save-btn" onclick="saveMemo()">Save</button>
+                    <button style="background:none; border:none; color:white; cursor:pointer; margin-left:12px; font-size:1.1rem;" onclick="toggleMemo()">✕</button>
+                </div>
+            </div>
+            <textarea id="memo-textarea" placeholder="채팅 중 떠오른 아이디어나 코드를 임시 저장해두세요. 저장 버튼을 누르면 재로그인해도 유지됩니다!"></textarea>
+        </div>
 
     <div id="notice-modal-overlay">
         <div class="notice-modal-box">
@@ -1169,8 +1279,9 @@
                     <h4 class="notice-title">🧠 2. 모델 및 추론 (Thinking)</h4>
                     <ul class="notice-ul">
                         <li><b>Lite:</b> 가장 빠르고 좋은 품질을 보장하는 기본 모델입니다.</li>
-                        <li><b>Flash 모델:</b> 문서 요약, 코드 분석 등 한층 더 똑똑하고 복잡한 업무 처리에 적합한 고성능 모델입니다.(필요 시 관리자 요청)</li>
-                        <li><b>나노바나나:</b> 이미지는 생성하는 모델입니다.(바나나 버튼 클릭)</li>
+                        <li><b>Flash 모델:</b> 문서 요약, 코드 분석 등 한층 더 똑똑하고 복잡한 업무 처리에 적합합니다.</li>
+                        <li><b>🐳 DeepSeek R1 (Pro):</b> 기존 API 비용 문제를 완벽히 해결한 <b>최고 수준의 추론/코딩 특화 모델</b>입니다. 이제 비용 걱정 없이 딥시크의 지능을 마음껏 활용하세요!</li>
+                        <li><b>나노바나나:</b> 텍스트나 참조 이미지를 기반으로 새로운 이미지를 생성합니다. (상단 바나나 버튼 클릭)</li>
                     </ul>
                 </div>
                 <div class="notice-card">
@@ -1183,8 +1294,9 @@
                 <div class="notice-card">
                     <h4 class="notice-title">🍌 4. 나노바나나 (이미지 생성)</h4>
                     <ul class="notice-ul">
-                        <li>입력창 좌측의 <b>[🍌]</b> 아이콘을 누르면 이미지 생성 모드로 전환됩니다.</li>
-                        <li>원하는 이미지를 텍스트로 묘사하거나, <b>참조 이미지를 첨부(📎)</b>하여 프롬프트를 입력해 보세요.</li>
+                        <li>입력창 좌측의 <b>[🍌]</b> 아이콘을 누르면 이미지 생성 모드로 전환됩니다. (불필요한 모델 선택창은 자동으로 숨겨집니다)</li>
+                        <li><b>대화형 수정이 가능합니다:</b> 이전 대화를 기억하므로 "방금 그린 이미지에서 배경을 밤으로 바꿔줘"라고 자연스럽게 요청할 수 있습니다.</li>
+                        <li><b>[주의]</b> 생성된 이미지는 서버 용량 최적화를 위해 <b>12시간이 지나면 자동으로 삭제(텍스트로 치환)</b>되므로, 중요한 이미지는 꼭 우클릭하여 별도로 저장해 주세요!</li>
                     </ul>
                 </div>
                 <div class="notice-card">
@@ -1337,12 +1449,9 @@
 
                     document.getElementById('usage-month').innerText = `$${data.monthly.toFixed(4)}`;
                     document.getElementById('usage-total').innerText = `$${data.total.toFixed(4)}`;
-                    // 관리자(admin) 또는 특정 계정에게만 표시하도록 수정
-                    if (currentUser && (currentUser.role === 'admin' || currentUser.username === 'shoo.kim')) {
-                        document.getElementById('usage-meter').style.display = 'flex';
-                    } else {
-                        document.getElementById('usage-meter').style.display = 'none';
-                    }
+                    // ▼▼▼ [새로운 코드로 교체] 어드민 포함 모든 화면에서 숨김 ▼▼▼
+                    document.getElementById('usage-meter').style.display = 'none';
+
                 }
             } catch (e) { console.error("Usage fetch error", e); }
         }
@@ -1397,7 +1506,7 @@
             }
 
             // [2026.03.22 추가] 지원되는 모델을 배열로 관리 (나중에 flash-thinking 등이 나오면 여기에 추가만 하면 됨)
-            const thinkingSupportedModels = ['gemini-3.1-pro', 'gemini-3.1-pro-preview']; 
+            const thinkingSupportedModels = ['gemini-3.1-pro-preview']; // 딥시크 제거 완료!
             
             const thinkingSelect = document.getElementById('thinking-select');
 
@@ -1426,23 +1535,8 @@
                     if(first) loadMessages(first.getAttribute('data-id'));
                 }
 
-                // [2026.03.21 새로운 코드 - 이걸 붙여넣으세요]
-                // 팝업 로직: 최초 사용자(매뉴얼) -> 기존 사용자(업데이트 노트) -> 세션 정리 알림
-                setTimeout(() => {
-                    const hasSeenManual = localStorage.getItem('assistBerry_hasSeenManual');
-                    if (!hasSeenManual) {
-                        // 1. 아예 처음 온 사람이면 매뉴얼을 띄워줌
-                        openManualModal();
-                        localStorage.setItem('assistBerry_hasSeenManual', 'true');
-                        // 매뉴얼 닫을 때쯤 뒤이어 세션 체크
-                        setTimeout(checkExpiredSessions, 10000); 
-                    } else {
-                        // 2. 이미 매뉴얼을 본 사람은 새로운 업데이트가 있는지 체크
-                        openNoticeModal(true);
-                        // 세션 체크
-                        setTimeout(checkExpiredSessions, 2000);
-                    }
-                }, 1000);
+                // 매뉴얼/업데이트 자동 팝업 제거, 세션 정리 알림만 1.5초 뒤 실행
+                setTimeout(checkExpiredSessions, 1500);
             });
             fetchUsage();
         }
@@ -1764,95 +1858,86 @@
             });
         }
 
-        // sendMessage 함수 전면 교체 (FormData 사용)
+        // [수정 구역] sendMessage 함수 전체를 아래 내용으로 덮어씌우세요.
         window.sendMessage = async function() {
             const inputBox = document.getElementById('input-box');
             const msg = inputBox.value.trim();
 
-            // 텍스트도 없고 파일도 없으면 중단
             if (isSending || (!msg && selectedFiles.length === 0)) return;
             
             isSending = true;
             if(!currentSessionId) await createNewSession();
 
             inputBox.value = ''; 
-            inputBox.style.height = '48px'; 
+            inputBox.style.height = '52px'; // 초기 높이로 복구
             
-            // 사용자 화면 표시용 메시지 구성
             let displayMsg = msg;
             if (selectedFiles.length > 0) {
-                // 채팅창에는 깔끔하게 파일명만 아이콘과 함께 표시
                 const fileBadges = selectedFiles.map(f => `\`📎 ${f.name}\``).join(' ');
                 displayMsg = `${fileBadges}\n\n${msg}`;
             }
             
-            appendMessage('user', displayMsg, false);
+            // 1. 유저 메시지 즉시 렌더링
+            appendMessage('user', displayMsg, true);
             
-            // 전송 준비
             const filesToSend = [...selectedFiles];
-            selectedFiles = []; // 배열 비우기
-            renderMiniPreview(); // 미리보기 끄기
+            selectedFiles = []; 
+            renderMiniPreview(); 
 
-            // 로딩바
-            const loading = document.createElement('div');
-            loading.className = 'message model';
-            loading.innerHTML = `<div class="content">⏳ Analyzing data...</div>`;
-            chatContainer.appendChild(loading);
-            chatContainer.scrollTop = chatContainer.scrollHeight;
+            // 2. 고퀄리티 타이핑 인디케이터 생성
+            const loadingDiv = document.createElement('div');
+            loadingDiv.className = 'message model loading-state';
+            loadingDiv.innerHTML = `
+                <div class="content" style="background: rgba(255,255,255,0.02); border: 1px dashed rgba(255,255,255,0.1);">
+                    <div class="typing-indicator">
+                        <div class="typing-dot"></div>
+                        <div class="typing-dot"></div>
+                        <div class="typing-dot"></div>
+                        <span style="margin-left: 10px; font-size: 0.85rem; color: var(--text-dim);">
+                            ${isBananaMode ? 'Banana is dreaming...' : 'AssistBerry is thinking...'}
+                        </span>
+                    </div>
+                </div>`;
+            chatContainer.appendChild(loadingDiv);
+            chatContainer.scrollTo({ top: chatContainer.scrollHeight, behavior: 'smooth' });
 
             try {
-                let res;
+                const formData = new FormData();
+                formData.append('sessionId', currentSessionId);
+                formData.append('message', msg);
+                if (isBananaMode) formData.append('prompt', msg); 
+                formData.append('modelName', document.getElementById('model-select').value);
+                formData.append('modeName', document.getElementById('mode-select').value);
+                formData.append('thinkingLevel', document.getElementById('thinking-select')?.value || 'none');
+                filesToSend.forEach(file => formData.append('files', file));
 
-                // 바나나 모드(이미지 생성)는 기존 JSON 방식
-                if (typeof isBananaMode !== 'undefined' && isBananaMode) {
-                    res = await fetch('/api/image', { 
-                        method: 'POST', headers: {'Content-Type':'application/json'}, 
-                        body: JSON.stringify({ sessionId: currentSessionId, prompt: msg }) 
-                    });
-                } else {
-                    // [핵심] 일반 대화 (파일 포함 가능) -> FormData 전송
-                    const formData = new FormData();
-                    formData.append('sessionId', currentSessionId);
-                    formData.append('message', msg); // 텍스트
-                    formData.append('modelName', document.getElementById('model-select').value);
-                    formData.append('modeName', document.getElementById('mode-select').value);
-                    //[2026.03.21 추가]
-                    formData.append('thinkingLevel', document.getElementById('thinking-select') ? document.getElementById('thinking-select').value : 'none');
-                    
-                    // 파일 추가 (upload.array('files')와 매칭)
-                    filesToSend.forEach(file => {
-                        formData.append('files', file);
-                    });
-
-                    // fetch 호출 (Content-Type 헤더 생략 -> 브라우저 자동 설정)
-                    res = await fetch('/api/chat', { method: 'POST', body: formData });
-                }
-
+                const endpoint = isBananaMode ? '/api/image' : '/api/chat';
+                const res = await fetch(endpoint, { method: 'POST', body: formData });
                 const data = await res.json();
-                chatContainer.removeChild(loading);
+
+                // 3. 로딩 인디케이터 제거 및 실제 답변 출력
+                if (loadingDiv.parentNode) loadingDiv.remove();
                 
                 if (!res.ok) throw new Error(data.error || 'Server Error');
+
+                // ★ 버그 수정 핵심: appendMessage 호출 후 강제로 스크롤 하단 고정
                 appendMessage('model', data.response, true);
                 
-                // ▼▼▼ [추가] 첫 번째 대화였다면 사이드바 제목 갱신을 위해 목록 다시 불러오기 ▼▼▼
-                // (현재 메시지가 2개(질문+답변) 이하라면 첫 대화로 간주)
-                // ▼▼▼ [수정] 제목이 DB에 저장될 시간을 벌어줌 (0.5초 -> 1.5초 딜레이) ▼▼▼
-                if (chatContainer.children.length <= 2) {
-                    setTimeout(() => {
-                        loadSessions(); 
-                    }, 1500); // API 응답 속도를 고려해 1.5초로 넉넉하게 변경
+                // 첫 채팅인 경우 세션 목록 업데이트
+                if (chatContainer.querySelectorAll('.message').length <= 2) {
+                    setTimeout(() => loadSessions(), 1500);
                 }
-                // ▲▲▲ [수정] 여기까지 ▲▲▲
-                // ▲▲▲ [추가] 여기까지 ▲▲▲
-                // ▼▼▼ [추가] 메시지 전송 후 비용 실시간 갱신
+                
                 fetchUsage();
             } catch(e) {
-                if(loading.parentNode) chatContainer.removeChild(loading);
-                appendMessage('model', `❌ Error: ${e.message}`, false);
+                if (loadingDiv.parentNode) loadingDiv.remove();
+                appendMessage('model', `❌ **오류가 발생했습니다.**\n${e.message}`, false);
+                console.error(e);
+            } finally {
+                isSending = false;
+                inputBox.focus();
             }
-            isSending = false;
         };
-        // ▲▲▲ [수정 완료] ▲▲▲
 
         // ▼▼▼ [수정] appendMessage 함수 내부: 긴 메시지 토글 및 구조 개선 ▼▼▼
         function appendMessage(role, content, animate) {
@@ -2093,12 +2178,7 @@
                     ? `<span style="color:#20c997; font-weight:800; margin-left:8px;">FLASH</span>` 
                     : `<span style="color:#868e96; font-size:0.9rem; margin-left:8px;">FLASH</span>`;
 
-                // 🚀 [추가됨] (2.8) Thinking 배지
-                const thinkBadge = (u.allow_thinking || isAdmin)
-                    ? `<span style="color:#fcc419; font-weight:800; margin-left:8px;" title="Thinking Allowed">THINK</span>` 
-                    : `<span style="color:#868e96; font-size:0.9rem; margin-left:8px;">THINK</span>`;
-
-                // (3) 바나나 버튼 로직 (관리자는 버튼 비활성화)
+                // [2026.04.14] 바나나 버튼 로직 (관리자는 버튼 비활성화)
                 let bananaBtn;
                 if (isAdmin) {
                     bananaBtn = `<button class="action-btn" style="background:#fab005; color:#000; font-weight:bold; cursor:default; opacity:0.7;" title="Admin Always ON">🔒</button>`;
@@ -2107,12 +2187,10 @@
                     const nextVal = currentVal === 1 ? 0 : 1; 
                     const btnColor = currentVal === 1 ? '#fab005' : 'rgba(255,255,255,0.1)';
                     const txtColor = currentVal === 1 ? '#000' : '#888';
-                    
-                    // 🔥 바나나 버튼에도 6번째 파라미터(allow_thinking) 추가
-                    bananaBtn = `<button class="action-btn" onclick="updateUser(${u.id},${u.is_approved},${u.allow_pro},${nextVal},${u.allow_flash},${u.allow_thinking})" style="background:${btnColor}; color:${txtColor}; font-weight:bold;">🍌</button>`;
+                    bananaBtn = `<button class="action-btn" onclick="updateUser(${u.id},${u.is_approved},${u.allow_pro},${nextVal},${u.allow_flash})" style="background:${btnColor}; color:${txtColor}; font-weight:bold;">🍌</button>`;
                 }
 
-                // 🚀 [수정됨] <tr> 내부 렌더링 (Think 배지 & 모든 버튼에 6번째 파라미터 적용)
+                // <tr> 내부 렌더링 (Think 배지 및 버튼 완전 제거)
                 tr.innerHTML = `
                     <td style="font-weight:bold; color:white;">
                         ${u.username} ${isAdmin ? '👑' : ''}
@@ -2122,7 +2200,6 @@
                         <div style="display:flex; align-items:center;">
                             ${proBadge} <span style="color:rgba(255,255,255,0.1); margin:0 4px;">|</span> 
                             ${flashBadge} <span style="color:rgba(255,255,255,0.1); margin:0 4px;">|</span> 
-                            ${thinkBadge} <span style="color:rgba(255,255,255,0.1); margin:0 4px;">|</span> 
                             ${bananaBadge}
                         </div>
                     </td>
@@ -2131,10 +2208,9 @@
                         <span style="color:var(--text-dim);" title="누적 비용">$${(u.total_cost || 0).toFixed(4)}</span>
                     </td>
                     <td>
-                        <button class="action-btn" onclick="updateUser(${u.id},1,${u.allow_pro},${u.allow_image},${u.allow_flash},${u.allow_thinking})" style="background:#51cf66; color:#fff;">OK</button>
-                        <button class="action-btn" onclick="updateUser(${u.id},${u.is_approved},${u.allow_pro?0:1},${u.allow_image},${u.allow_flash},${u.allow_thinking})" style="background:${u.allow_pro?'#1c7ed6':'#339af0'}; color:#fff;">Pro</button>
-                        <button class="action-btn" onclick="updateUser(${u.id},${u.is_approved},${u.allow_pro},${u.allow_image},${u.allow_flash?0:1},${u.allow_thinking})" style="background:${u.allow_flash?'#099268':'#20c997'}; color:#fff;">Flash</button>
-                        <button class="action-btn" onclick="updateUser(${u.id},${u.is_approved},${u.allow_pro},${u.allow_image},${u.allow_flash},${u.allow_thinking?0:1})" style="background:${u.allow_thinking?'#e67700':'#fcc419'}; color:#fff;">Think</button>
+                        <button class="action-btn" onclick="updateUser(${u.id},1,${u.allow_pro},${u.allow_image},${u.allow_flash})" style="background:#51cf66; color:#fff;">OK</button>
+                        <button class="action-btn" onclick="updateUser(${u.id},${u.is_approved},${u.allow_pro?0:1},${u.allow_image},${u.allow_flash})" style="background:${u.allow_pro?'#1c7ed6':'#339af0'}; color:#fff;">Pro</button>
+                        <button class="action-btn" onclick="updateUser(${u.id},${u.is_approved},${u.allow_pro},${u.allow_image},${u.allow_flash?0:1})" style="background:${u.allow_flash?'#099268':'#20c997'}; color:#fff;">Flash</button>
                         ${bananaBtn}
                         <button class="action-btn delete-user-btn" onclick="deleteUser(${u.id})">Del</button>
                     </td>`;
@@ -2197,10 +2273,9 @@
 
         // [2026.03.17 추가] 수정
         // ▼▼▼ [수정됨] updateUser 함수 ▼▼▼
-        async function updateUser(id, a, p, i, f, t) { // 🔥 f(allow_flash) 추가
+        async function updateUser(id, a, p, i, f) { // t 제거됨
             if (i === undefined || i === null) i = 0;
-            if (f === undefined || f === null) f = 0; // 🔥 추가
-            if (t === undefined || t === null) t = 0; // 2026.03.21 추론 권한 추가
+            if (f === undefined || f === null) f = 0; 
 
             await fetch('/api/admin/update', {
                 method: 'POST', 
@@ -2210,8 +2285,7 @@
                     is_approved: a, 
                     allow_pro: p, 
                     allow_image: i,
-                    allow_flash: f,
-                    allow_thinking: t // 🔥 추가
+                    allow_flash: f
                 })
             });
             
@@ -2225,24 +2299,6 @@
             if(res.ok) { currentUser = await res.json(); initApp(); }
         })();
 
-        // Snow & Copy Fix
-        function createSnowflakes() {
-            const container = document.getElementById('snow-header-snow');
-            if (!container) return; 
-            const count = 40; 
-            for (let i = 0; i < count; i++) {
-                const flake = document.createElement('div');
-                flake.className = 'snowflake';
-                const size = Math.random() * 3 + 2 + 'px'; 
-                flake.style.width = size; flake.style.height = size;
-                flake.style.left = Math.random() * 100 + '%';
-                flake.style.animationDuration = Math.random() * 3 + 2 + 's'; 
-                flake.style.animationDelay = Math.random() * -5 + 's';
-                flake.style.opacity = Math.random() * 0.4 + 0.3;
-                container.appendChild(flake);
-            }
-        }
-        createSnowflakes();
 
         // ▼▼▼ [수정됨] 복사 로직 개선: 코드 블록은 건드리지 않음 ▼▼▼
         document.addEventListener('copy', function(e) {
@@ -2447,25 +2503,43 @@
 
             let isBananaMode = false;
 
-            // 1. 바나나 모드 토글 함수
+            // 1. 바나나 모드 토글 함수 (사이드바 모델 & 입력창 모드 모두 숨김)
             function toggleBananaMode() {
                 isBananaMode = !isBananaMode;
                 const btn = document.getElementById('banana-btn');
                 const body = document.body;
                 const inputBox = document.getElementById('input-box');
                 
+                // 숨겨야 할 대상들
+                const inputModeSelect = document.querySelector('.input-wrapper #mode-select'); // 입력창 왼쪽
+                const sidebarModelSelect = document.getElementById('model-select');            // 사이드바 모델 선택
+                const sidebarThinkingSelect = document.getElementById('thinking-select');      // 사이드바 추론 선택
+                
                 if (isBananaMode) {
                     btn.classList.add('active');
                     body.classList.add('banana-mode');
                     inputBox.placeholder = "🍌 [Banana Mode] 상상하는 이미지를 묘사해보세요...";
+                    
+                    // 불필요한 셀렉트 박스 모두 숨기기
+                    if (inputModeSelect) inputModeSelect.style.display = 'none';
+                    if (sidebarModelSelect) sidebarModelSelect.style.display = 'none';
+                    if (sidebarThinkingSelect) sidebarThinkingSelect.style.display = 'none';
                 } else {
                     btn.classList.remove('active');
                     body.classList.remove('banana-mode');
                     inputBox.placeholder = "Ask anything...";
+                    
+                    // 원래대로 복구
+                    if (inputModeSelect) inputModeSelect.style.display = 'block';
+                    if (sidebarModelSelect) {
+                        sidebarModelSelect.style.display = 'block';
+                        // 이벤트를 강제로 발생시켜 추론(Thinking) 창이 필요한 모델인지 자동 계산하게 만듦
+                        sidebarModelSelect.dispatchEvent(new Event('change'));
+                    }
                 }
             }
 
-            // ▼▼▼ [수정] sendMessage 함수 (바나나 모드도 파일 전송 가능하게 변경) ▼▼▼
+            // ▼▼▼ [2026.04.14 수정] sendMessage 함수 (버그 수정 및 애니메이션 통합 완결판) ▼▼▼
             window.sendMessage = async function() {
                 const inputBox = document.getElementById('input-box');
                 const msg = inputBox.value.trim();
@@ -2478,79 +2552,126 @@
 
                 // UI 초기화
                 inputBox.value = ''; 
-                inputBox.style.height = '48px'; 
+                inputBox.style.height = '52px'; 
                 inputBox.style.overflowY = 'hidden';
                 
-                // 사용자 메시지 표시
+                // 유저 메시지 즉시 표시
                 let displayMsg = msg;
                 if (selectedFiles.length > 0) {
                     const fileBadges = selectedFiles.map(f => `\`📎 ${f.name}\``).join(' ');
                     displayMsg = `${fileBadges}\n\n${msg}`;
                 }
-                appendMessage('user', displayMsg, false);
+                appendMessage('user', displayMsg, true);
                 
                 // 전송할 파일 백업 후 초기화
                 const filesToSend = [...selectedFiles];
                 selectedFiles = []; 
                 renderMiniPreview(); 
 
-                // 로딩바 표시
-                const loading = document.createElement('div');
-                loading.className = 'message model';
-                // 바나나 모드일 때는 문구 변경
-                const loadingText = (typeof isBananaMode !== 'undefined' && isBananaMode) ? "🍌 Dreaming..." : "⏳ Analyzing...";
-                loading.innerHTML = `<div class="content">${loadingText}</div>`;
-                chatContainer.appendChild(loading);
-                chatContainer.scrollTop = chatContainer.scrollHeight;
+                // [2026.04.14 추가] 상태별 맞춤형 타이핑/로딩 인디케이터 생성
+                const loadingDiv = document.createElement('div');
+                loadingDiv.className = 'message model loading-state';
+                
+                const selectedModel = document.getElementById('model-select').value;
+                const isDeepSeek = selectedModel === 'gemini-3.1-pro';
+
+                if (typeof isBananaMode !== 'undefined' && isBananaMode) {
+                    loadingDiv.innerHTML = `
+                        <div class="content" style="background: rgba(40, 35, 10, 0.8); border: 1px solid #fcc419; box-shadow: 0 0 15px rgba(252,196,25,0.15);">
+                            <div class="typing-indicator">
+                                <div class="typing-dot" style="background:#fcc419;"></div>
+                                <div class="typing-dot" style="background:#fcc419;"></div>
+                                <div class="typing-dot" style="background:#fcc419;"></div>
+                                <span style="margin-left: 10px; font-size: 0.85rem; color: #fcc419; font-weight:bold;">
+                                    🍌 나노바나나가 캔버스를 그리고 있습니다...
+                                </span>
+                            </div>
+                        </div>`;
+                } else if (isDeepSeek) {
+                    loadingDiv.innerHTML = `
+                        <div class="deepseek-loading">
+                            <div class="deepseek-content">
+                                <div class="ds-icon">🐳</div>
+                                <div>
+                                    <div class="ds-text">DeepSeek R1 Reasoning Engine Active...</div>
+                                    <span class="ds-sub">최고 수준의 심도 있는 추론 중입니다. (난이도에 따라 최대 수 분 소요)</span>
+                                </div>
+                            </div>
+                        </div>`;
+                } else {
+                    loadingDiv.innerHTML = `
+                        <div class="content" style="background: rgba(255,255,255,0.02); border: 1px dashed rgba(255,255,255,0.1);">
+                            <div class="typing-indicator">
+                                <div class="typing-dot"></div>
+                                <div class="typing-dot"></div>
+                                <div class="typing-dot"></div>
+                                <span style="margin-left: 10px; font-size: 0.85rem; color: var(--text-dim);">
+                                    AssistBerry is thinking...
+                                </span>
+                            </div>
+                        </div>`;
+                }
+                chatContainer.appendChild(loadingDiv);
+                chatContainer.scrollTo({ top: chatContainer.scrollHeight, behavior: 'smooth' });
 
                 try {
-                    let res;
-                    
-                    // ★ [핵심 변경] 모든 모드에서 FormData 사용 (파일 전송을 위해)
                     const formData = new FormData();
                     formData.append('sessionId', currentSessionId);
-                    formData.append('message', msg); // 프롬프트 텍스트 (api/image에서는 'prompt'로 받을 수 있게 아래에서 처리하거나 서버를 맞춤)
+                    formData.append('message', msg); 
                     
-                    // 서버의 /api/image는 req.body.prompt를 기대하므로, 
-                    // 바나나 모드일 때는 'prompt'라는 이름으로도 값을 넣어줍니다.
+                    // 바나나 모드 파라미터 대응
                     if (typeof isBananaMode !== 'undefined' && isBananaMode) {
                         formData.append('prompt', msg); 
                     }
 
                     formData.append('modelName', document.getElementById('model-select').value);
                     formData.append('modeName', document.getElementById('mode-select').value);
+                    formData.append('thinkingLevel', document.getElementById('thinking-select')?.value || 'none');
                     
-                    // 파일 추가
                     filesToSend.forEach(file => {
                         formData.append('files', file);
                     });
 
-                    // API 엔드포인트 결정
                     const endpoint = (typeof isBananaMode !== 'undefined' && isBananaMode) ? '/api/image' : '/api/chat';
 
-                    // 전송 (Content-Type 헤더 생략 -> 브라우저 자동 설정)
-                    res = await fetch(endpoint, { 
+                    const res = await fetch(endpoint, { 
                         method: 'POST', 
                         body: formData 
                     });
 
-                    const data = await res.json();
-                    chatContainer.removeChild(loading);
+                    const textRaw = await res.text();
+                    let data;
+                    try {
+                        data = JSON.parse(textRaw);
+                    } catch (err) {
+                        console.error("Raw response:", textRaw);
+                        throw new Error("서버 응답 지연 또는 과부하로 인해 답변이 중단되었습니다.");
+                    }
+                    
+                    // 3. 로딩 인디케이터 제거
+                    if (loadingDiv.parentNode) loadingDiv.remove();
                     
                     if (!res.ok) throw new Error(data.error || 'Server Error');
-                    appendMessage('model', data.response, true);
+
+                    // ★ 버그 수정의 핵심: 응답을 받은 즉시 화면에 렌더링하고 스크롤을 내립니다.
+                    requestAnimationFrame(() => {
+                        appendMessage('model', data.response, true);
+                        chatContainer.scrollTop = chatContainer.scrollHeight;
+                    });
                     
-                    // ▼▼▼ [수정] 제목이 DB에 저장될 시간을 벌어줌 (0.5초 딜레이) ▼▼▼
-                    if (chatContainer.children.length <= 2) {
+                    // 첫 채팅인 경우 세션 목록 제목 업데이트 반영
+                    if (chatContainer.querySelectorAll('.message').length <= 2) {
                         setTimeout(() => {
                             loadSessions(); 
                         }, 500); 
                     }
-                    // ▲▲▲ [수정] 여기까지 ▲▲▲
+                    
+                    // 상단 비용 실시간 업데이트
+                    if (typeof fetchUsage === 'function') fetchUsage();
                     
                 } catch(e) {
-                    if(loading.parentNode) chatContainer.removeChild(loading);
-                    appendMessage('model', `❌ Error: ${e.message}`, false);
+                    if (loadingDiv.parentNode) loadingDiv.remove();
+                    appendMessage('model', `❌ **오류가 발생했습니다.**\n${e.message}`, false);
                     console.error(e);
                 } finally {
                     isSending = false;
@@ -2711,7 +2832,7 @@
             document.getElementById('manual-modal-overlay').style.display = 'flex';
         }
 
-        // ▼▼▼ 사이드바 메뉴 접기/펼치기 기능 ▼▼▼
+// ▼▼▼ 사이드바 메뉴 접기/펼치기 기능 ▼▼▼
         function toggleFooterMenu() {
             const area = document.getElementById('footer-collapsible-area');
             const btn = document.getElementById('footer-menu-toggle');
@@ -2726,5 +2847,52 @@
                 btn.style.color = 'var(--text-dim)';
             }
         }
+
+        // ▼▼▼ [2026.04.14 추가] 메모장 열기/저장 기능 ▼▼▼
+        async function toggleMemo() {
+            const widget = document.getElementById('memo-widget');
+            if (widget.style.display === 'flex') {
+                widget.style.display = 'none';
+            } else {
+                widget.style.display = 'flex';
+                // 열 때 DB에서 최신 메모 불러오기
+                try {
+                    const res = await fetch('/api/memo');
+                    if (res.ok) {
+                        const data = await res.json();
+                        document.getElementById('memo-textarea').value = data.memo || '';
+                    }
+                } catch(e) { console.error("Memo fetch error:", e); }
+            }
+        }
+
+        async function saveMemo() {
+            const memoText = document.getElementById('memo-textarea').value;
+            const btn = document.getElementById('memo-save-btn');
+            btn.innerText = '...';
+            try {
+                const res = await fetch('/api/memo', {
+                    method: 'POST', 
+                    headers: {'Content-Type':'application/json'},
+                    body: JSON.stringify({ memo: memoText })
+                });
+                if (res.ok) {
+                    btn.innerText = 'Saved!';
+                    btn.style.color = '#51cf66'; // 연두색으로 피드백
+                    setTimeout(() => {
+                        btn.innerText = 'Save';
+                        btn.style.color = 'white';
+                    }, 2000);
+                } else { throw new Error('Save failed'); }
+            } catch(e) {
+                btn.innerText = 'Error';
+                btn.style.color = '#ff6b6b';
+                setTimeout(() => {
+                    btn.innerText = 'Save';
+                    btn.style.color = 'white';
+                }, 2000);
+            }
+        }
+        // ▲▲▲ [추가] 여기까지 ▲▲▲
 
     </script>

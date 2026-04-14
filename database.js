@@ -76,7 +76,13 @@ db.serialize(() => {
             console.log("✅ [DB 업데이트] 기존 유저 테이블에 allow_thinking 컬럼 추가 완료!");
         }
     });
-    // 🚀 [추가 끝]
+// ▼▼▼ [추가] 유저 테이블에 메모 컬럼 추가 ▼▼▼
+    db.run("ALTER TABLE users ADD COLUMN memo TEXT DEFAULT ''", (err) => {
+        if (!err) {
+            console.log("✅ [DB 업데이트] 기존 유저 테이블에 memo 컬럼 추가 완료!");
+        }
+    });
+    // ▲▲▲ [추가] 여기까지 ▲▲▲
 
 });
 
